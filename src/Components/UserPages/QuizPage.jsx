@@ -41,6 +41,7 @@ const QuizPage = () => {
         client.subscribe(`/topic/currentQuestion/${sessionCode}`, (message) => {
           const newQuestion = JSON.parse(message.body);
           if (!quizEnded && newQuestion) {
+            setSelectedOption("");
             setCurrentQuestion(newQuestion);
             setWaitingForNextQuestion(false);
             setTimeUp(false);

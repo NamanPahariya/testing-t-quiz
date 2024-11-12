@@ -16,49 +16,46 @@ const PresentQues = () => {
   const location = useLocation();
 
   const { code } = location.state || {};
+
   useEffect(() => {
     Aos.init({ duration: 2000 });
-
-    const socket = new SockJS(`${baseUrl}/quiz-websocket`);
-    const client = new Client({
-      webSocketFactory: () => socket,
-      onConnect: () => {
-        console.log("WebSocket connected");
-
-        // Subscribe to receive session code
-        // Subscribe to the specific quizQuestions topic for this session code
-        client.subscribe(`/topic/quizQuestions/${code}`, (questionMessage) => {
-          const broadcastedQuestions = JSON.parse(questionMessage.body);
-          setQuestions(broadcastedQuestions);
-          console.log("Received questions for session:", broadcastedQuestions);
-        });
-
-        // Request to start quiz, triggering the session code generation
-      },
-      // onWebSocketClose: () => {
-      //   console.log("WebSocket connection closed");
-      // },
-      onWebSocketError: (error) => {
-        console.error("WebSocket error:", error);
-      },
-    });
-
-    stompClientRef.current = client;
-    stompClientRef.current.activate();
-
-    return () => {
-      // Clean up
-      // if (stompClientRef.current) stompClientRef.current.deactivate();
-    };
   }, []);
 
   const presentQuestions = () => {
-    if (stompClientRef.current && code) {
-      stompClientRef.current.publish({
-        destination: `/app/broadcastQuestions/${code}`,
-        body: JSON.stringify({}),
+    if (!stompClientRef.current) {
+      const socket = new SockJS(`${baseUrl}/quiz-websocket`);
+      const client = new Client({
+        webSocketFactory: () => socket,
+        onConnect: () => {
+          console.log("WebSocket connected");
+
+          // Subscribe to receive session code
+          client.subscribe(
+            `/topic/quizQuestions/${code}`,
+            (questionMessage) => {
+              const broadcastedQuestions = JSON.parse(questionMessage.body);
+              setQuestions(broadcastedQuestions);
+              console.log(
+                "Received questions for session:",
+                broadcastedQuestions
+              );
+            }
+          );
+
+          // Request to start quiz, triggering the session code generation
+          client.publish({
+            destination: `/app/broadcastQuestions/${code}`,
+            body: JSON.stringify({}),
+          });
+          console.log("Broadcasting questions for session:", code);
+        },
+        onWebSocketError: (error) => {
+          console.error("WebSocket error:", error);
+        },
       });
-      console.log("Broadcasting questions for session:", code);
+
+      stompClientRef.current = client;
+      stompClientRef.current.activate();
     }
   };
 
@@ -92,7 +89,7 @@ const PresentQues = () => {
           <div
             className={`absolute z-10 ${
               tooltipVisible ? "visible opacity-100" : "invisible opacity-0"
-            } inline-block px-3 py-2 text-sm font-medium text-black bg-gray-100 transition-opacity duration-300  rounded-lg shadow-sm tooltip `}
+            } inline-block px-3 py-2 text-sm font-medium text-black bg-gray-100 transition-opacity duration-300 rounded-lg shadow-sm tooltip`}
             style={{
               bottom: "100%",
               left: "50%",

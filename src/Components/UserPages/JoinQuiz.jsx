@@ -17,51 +17,49 @@ const JoinQuiz = () => {
 
   useEffect(() => {
     Aos.init({ duration: 2000 });
-
-    const socket = new SockJS(`${baseUrl}/quiz-websocket`);
-    const stompClient = new Client({
-      webSocketFactory: () => socket,
-      onConnect: () => {
-        console.log("WebSocket connected");
-
-        stompClient.subscribe("/topic/joinedStudents", (message) => {
-          const response = message.body;
-          console.log("Received join message:", response);
-          if (!response.includes("Invalid session code!")) {
-            navigate("/quiz", { state: { response } });
-          } else {
-            toast.error("Invalid session code!");
-          }
-        });
-
-        stompClient.subscribe("/topic/validation", (message) => {
-          const validationResponse = message.body;
-          console.log("Received validation response:", validationResponse);
-
-          if (validationResponse.includes("Invalid session code!")) {
-            toast.error(validationResponse);
-          } else {
-            toast.success("Successfully joined the quiz!");
-          }
-        });
-      },
-      onWebSocketClose: () => {
-        console.log("WebSocket connection closed");
-      },
-      onWebSocketError: (error) => {
-        console.error("WebSocket error:", error);
-      },
-    });
-
-    stompClient.activate();
-    setClient(stompClient);
-
-    return () => {
-      // stompClient.deactivate(); // Cleanup on unmount
-    };
-  }, [navigate]);
+  }, []);
 
   const joinQuiz = () => {
+    if (!client) {
+      const socket = new SockJS(`${baseUrl}/quiz-websocket`);
+      const stompClient = new Client({
+        webSocketFactory: () => socket,
+        onConnect: () => {
+          console.log("WebSocket connected");
+
+          stompClient.subscribe("/topic/joinedStudents", (message) => {
+            const response = message.body;
+            console.log("Received join message:", response);
+            if (!response.includes("Invalid session code!")) {
+              navigate("/quiz", { state: { response } });
+            } else {
+              toast.error("Invalid session code!");
+            }
+          });
+
+          // stompClient.subscribe("/topic/validation", (message) => {
+          //   const validationResponse = message.body;
+          //   console.log("Received validation response:", validationResponse);
+
+          //   if (validationResponse.includes("Invalid session code!")) {
+          //     toast.error(validationResponse);
+          //   } else {
+          //     toast.success("Successfully joined the quiz!");
+          //   }
+          // });
+        },
+        onWebSocketClose: () => {
+          console.log("WebSocket connection closed");
+        },
+        onWebSocketError: (error) => {
+          console.error("WebSocket error:", error);
+        },
+      });
+
+      stompClient.activate();
+      setClient(stompClient);
+    }
+
     if (client && sessionCode && studentName) {
       client.publish({
         destination: "/app/joinQuiz",
@@ -76,8 +74,6 @@ const JoinQuiz = () => {
       setSessionCode("");
       setStudentName("");
       localStorage.setItem("sessionCode", sessionCode);
-    } else {
-      toast.error("Please enter both your name and session code.");
     }
   };
 
