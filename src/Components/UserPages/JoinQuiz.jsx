@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import Aos from "aos";
@@ -10,6 +10,7 @@ const JoinQuiz = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
 
   const [client, setClient] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [sessionCode, setSessionCode] = useState("");
   const [studentName, setStudentName] = useState("");
 
@@ -19,48 +20,74 @@ const JoinQuiz = () => {
     Aos.init({ duration: 2000 });
   }, []);
 
-  const joinQuiz = () => {
-    if (!client) {
-      const socket = new SockJS(`${baseUrl}/quiz-websocket`);
-      const stompClient = new Client({
-        webSocketFactory: () => socket,
-        onConnect: () => {
-          console.log("WebSocket connected");
+  // Initialize WebSocket connection
+  const initializeWebSocket = useCallback(() => {
+    if (isConnecting) return null;
 
-          stompClient.subscribe("/topic/joinedStudents", (message) => {
-            const response = message.body;
-            console.log("Received join message:", response);
-            if (!response.includes("Invalid session code!")) {
-              navigate("/quiz", { state: { response } });
-            } else {
-              toast.error("Invalid session code!");
-            }
-          });
+    setIsConnecting(true);
+    const socket = new SockJS(`${baseUrl}/quiz-websocket`);
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      onConnect: () => {
+        console.log("WebSocket connected");
+        setIsConnecting(false);
+        setClient(stompClient);
 
-          // stompClient.subscribe("/topic/validation", (message) => {
-          //   const validationResponse = message.body;
-          //   console.log("Received validation response:", validationResponse);
+        stompClient.subscribe("/topic/joinedStudents", (message) => {
+          const response = message.body;
+          console.log("Received join message:", response);
+          if (!response.includes("Invalid session code!")) {
+            navigate("/quiz");
+          } else {
+            toast.error("Invalid session code!");
+            setStudentName("");
+            setSessionCode("");
+          }
+        });
+      },
+      onWebSocketClose: () => {
+        console.log("WebSocket connection closed");
+        setClient(null);
+        setIsConnecting(false);
+      },
+      onWebSocketError: (error) => {
+        console.error("WebSocket error:", error);
+        setIsConnecting(false);
+        toast.error("Failed to connect to server. Please try again.");
+      },
+    });
 
-          //   if (validationResponse.includes("Invalid session code!")) {
-          //     toast.error(validationResponse);
-          //   } else {
-          //     toast.success("Successfully joined the quiz!");
-          //   }
-          // });
-        },
-        onWebSocketClose: () => {
-          console.log("WebSocket connection closed");
-        },
-        onWebSocketError: (error) => {
-          console.error("WebSocket error:", error);
-        },
-      });
+    stompClient.activate();
+    return stompClient;
+  }, [baseUrl, navigate, isConnecting]);
 
-      stompClient.activate();
-      setClient(stompClient);
+  // Handle join quiz action
+  const handleJoinQuiz = useCallback(() => {
+    if (!sessionCode || !studentName) {
+      toast.error("Please enter both name and session code");
+      return;
     }
 
-    if (client && sessionCode && studentName) {
+    if (!client) {
+      const newClient = initializeWebSocket();
+      if (newClient) {
+        // Wait for connection before sending join message
+        const checkConnection = setInterval(() => {
+          if (newClient.connected) {
+            clearInterval(checkConnection);
+            newClient.publish({
+              destination: "/app/joinQuiz",
+              body: JSON.stringify({
+                name: studentName,
+                sessionCode,
+              }),
+            });
+            localStorage.setItem("sessionCode", sessionCode);
+          }
+        }, 100);
+      }
+    } else {
+      // If already connected, send join message directly
       client.publish({
         destination: "/app/joinQuiz",
         body: JSON.stringify({
@@ -68,14 +95,9 @@ const JoinQuiz = () => {
           sessionCode,
         }),
       });
-      console.log(
-        `Sent joinQuiz message for ${studentName} with session code: ${sessionCode}`
-      );
-      setSessionCode("");
-      setStudentName("");
       localStorage.setItem("sessionCode", sessionCode);
     }
-  };
+  }, [client, sessionCode, studentName, initializeWebSocket]);
 
   return (
     <div
@@ -102,10 +124,13 @@ const JoinQuiz = () => {
           className="w-full bg-white text-gray-800 border-2 border-gray-300 rounded-lg px-4 py-3 transition-shadow duration-300 focus:border-blue-400 focus:ring focus:ring-blue-200 focus:outline-none placeholder-gray-500"
         />
         <button
-          onClick={joinQuiz}
-          className="w-full bg-gradient-to-r from-teal-400 to-blue-400 text-white rounded-full px-6 py-3 text-lg font-semibold shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
+          onClick={handleJoinQuiz}
+          disabled={isConnecting}
+          className={`w-full bg-gradient-to-r from-teal-400 to-blue-400 text-white rounded-full px-6 py-3 text-lg font-semibold shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg ${
+            isConnecting ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
-          Join Quiz
+          {isConnecting ? "Connecting..." : "Join Quiz"}
         </button>
       </div>
     </div>
