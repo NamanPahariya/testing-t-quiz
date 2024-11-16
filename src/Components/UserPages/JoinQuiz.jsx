@@ -19,62 +19,107 @@ const JoinQuiz = () => {
     Aos.init({ duration: 2000 });
   }, []);
 
-  const joinQuiz = () => {
-    if (!client) {
-      const socket = new SockJS(`${baseUrl}/quiz-websocket`);
-      const stompClient = new Client({
-        webSocketFactory: () => socket,
-        onConnect: () => {
-          console.log("WebSocket connected");
-
-          // Subscribe to the joinedStudents topic
-          stompClient.subscribe("/topic/joinedStudents", (message) => {
-            const response = message.body;
-            console.log("Received join message:", response);
-
-            // Check if the response contains "Invalid session code!"
-            if (response.includes("Invalid session code!")) {
-              toast.error("Invalid session code!");
-            } else {
-              // Assuming the response contains session or other relevant data
-              toast.success("Successfully joined the quiz!");
-              navigate("/quiz", { state: { response } });
-            }
-          });
-
-          // Subscribe to the error topic to listen for any errors
-          stompClient.subscribe("/user/topic/errors", (message) => {
-            const errorMessage = message.body;
-            console.error("Error received: ", errorMessage);
-            toast.error(errorMessage); // Display the error message to the user
-          });
+  const validateUser = async () => {
+    try {
+      const response = await fetch(`${baseUrl}/api/quiz/validate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        onWebSocketClose: () => {
-          console.log("WebSocket connection closed");
-        },
-        onWebSocketError: (error) => {
-          console.error("WebSocket error:", error);
-        },
-      });
-
-      stompClient.activate();
-      setClient(stompClient);
-    }
-
-    if (client && sessionCode && studentName) {
-      client.publish({
-        destination: "/app/joinQuiz",
         body: JSON.stringify({
           name: studentName,
           sessionCode,
         }),
       });
+
+      if (!response.ok) {
+        const errorMessage = await response.text();
+        throw new Error(errorMessage || "Validation failed!");
+      }
+
+      const responseData = await response.text(); // Parse as plain text
+      console.log("Validation successful:", responseData);
+
+      if (responseData.includes("Session code valid")) {
+        toast.success("Successfully validated!");
+        return true;
+      } else {
+        throw new Error("Unexpected response from server.");
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+      toast.error(error.message);
+      return false;
+    }
+  };
+
+  const establishWebSocketConnection = () =>
+    new Promise((resolve) => {
+      if (!client) {
+        const socket = new SockJS(`${baseUrl}/quiz-websocket`);
+        const stompClient = new Client({
+          webSocketFactory: () => socket,
+          onConnect: () => {
+            console.log("WebSocket connected");
+            setClient(stompClient);
+            resolve(stompClient);
+          },
+          onWebSocketClose: () => {
+            console.log("WebSocket connection closed");
+          },
+          onWebSocketError: (error) => {
+            console.error("WebSocket error:", error);
+            toast.error("WebSocket connection failed.");
+          },
+        });
+
+        stompClient.activate();
+      } else {
+        resolve(client);
+      }
+    });
+
+  const joinQuiz = async () => {
+    if (!studentName || !sessionCode) {
+      toast.error("Please enter your name and session code!");
+      return;
+    }
+
+    const isValid = await validateUser();
+    if (!isValid) {
+      setSessionCode("");
+      setStudentName("");
+      return;
+    }
+
+    try {
+      const stompClient = await establishWebSocketConnection();
+
+      // Subscribe to the topic for joined students
+      console.log("Subscribing to /topic/joinedStudents...");
+      stompClient.subscribe("/topic/joinedStudents", (message) => {
+        const response = message.body; // Backend sends a plain string message
+        console.log("Received join message:", response);
+
+        // toast.success(response); // Notify user of success
+        navigate("/quiz");
+      });
+
+      // Publish the joinQuiz message
+      console.log("Publishing joinQuiz message...");
+      stompClient.publish({
+        destination: "/app/joinQuiz",
+        body: `${studentName},${sessionCode}`, // Adjusted payload format
+      });
+
       console.log(
         `Sent joinQuiz message for ${studentName} with session code: ${sessionCode}`
       );
-      setSessionCode("");
-      setStudentName("");
+
       localStorage.setItem("sessionCode", sessionCode);
+    } catch (error) {
+      console.error("Error in joining quiz:", error);
+      toast.error("Could not join the quiz.");
     }
   };
 
