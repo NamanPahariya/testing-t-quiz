@@ -109,7 +109,7 @@ const JoinQuiz = () => {
       console.log("Publishing joinQuiz message...");
       stompClient.publish({
         destination: "/app/joinQuiz",
-        body: `${studentName}`, // Adjusted payload format
+        body: `${sessionCode}`, // Adjusted payload format
       });
 
       console.log(
