@@ -112,7 +112,11 @@ const JoinQuiz = () => {
       // Publish the joinQuiz message
       stompClient.publish({
         destination: "/app/joinQuiz",
-        body: JSON.stringify({ sessionCode }), // Adjusted payload format
+        body: JSON.stringify({
+          name: studentName,
+          sessionCode: sessionCode,
+        }),
+        headers: { "Content-Type": "application/json" }, // Add Content-Type header
       });
 
       console.log(
