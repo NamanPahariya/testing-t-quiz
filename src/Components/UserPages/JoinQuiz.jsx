@@ -17,7 +17,13 @@ const JoinQuiz = () => {
 
   useEffect(() => {
     Aos.init({ duration: 2000 });
-  }, []);
+    return () => {
+      // Cleanup WebSocket connection
+      if (client) {
+        client.deactivate();
+      }
+    };
+  }, [client]);
 
   const validateUser = async () => {
     try {
@@ -37,7 +43,7 @@ const JoinQuiz = () => {
         throw new Error(errorMessage || "Validation failed!");
       }
 
-      const responseData = await response.text(); // Parse as plain text
+      const responseData = await response.text();
       console.log("Validation successful:", responseData);
 
       if (responseData.includes("Session code valid")) {
@@ -54,7 +60,7 @@ const JoinQuiz = () => {
   };
 
   const establishWebSocketConnection = () =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       if (!client) {
         const socket = new SockJS(`${baseUrl}/quiz-websocket`);
         const stompClient = new Client({
@@ -70,6 +76,7 @@ const JoinQuiz = () => {
           onWebSocketError: (error) => {
             console.error("WebSocket error:", error);
             toast.error("WebSocket connection failed.");
+            reject(error);
           },
         });
 
@@ -96,20 +103,16 @@ const JoinQuiz = () => {
       const stompClient = await establishWebSocketConnection();
 
       // Subscribe to the topic for joined students
-      console.log("Subscribing to /topic/joinedStudents...");
       stompClient.subscribe("/topic/joinedStudents", (message) => {
-        const response = message.body; // Backend sends a plain string message
+        const response = message.body;
         console.log("Received join message:", response);
-
-        // toast.success(response); // Notify user of success
         navigate("/quiz");
       });
 
       // Publish the joinQuiz message
-      console.log("Publishing joinQuiz message...");
       stompClient.publish({
         destination: "/app/joinQuiz",
-        body: `${sessionCode}`, // Adjusted payload format
+        body: JSON.stringify({ sessionCode }), // Adjusted payload format
       });
 
       console.log(
