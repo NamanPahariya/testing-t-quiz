@@ -9,13 +9,13 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-// import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Progress } from "../ui/progress";
+// import { Alert, AlertDescription } from "../ui/alert";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Label } from "../ui/label";
+import { Skeleton } from "../ui/skeleton";
 import { Timer } from "lucide-react";
 
 const BroadcastQues = () => {

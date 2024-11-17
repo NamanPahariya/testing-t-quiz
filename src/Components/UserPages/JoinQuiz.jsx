@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { useNavigate } from "react-router-dom";
-// import { useToast } from "@/components/ui/use-toast";
+// import { useToast } from "../ui/use-toast";
 import {
   Card,
   CardContent,
@@ -10,10 +10,10 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { Loader2, Users, KeyRound, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 

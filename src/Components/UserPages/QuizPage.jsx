@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+} from "../ui/card";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
 import {
   AlertCircle,
   CheckCircle2,
@@ -20,7 +20,7 @@ import {
   Radio,
   Trophy,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "../ui/alert";
 import CountdownTimer from "../ui/CountdownTimer";
 
 const QuizPage = () => {
