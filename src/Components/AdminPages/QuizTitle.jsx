@@ -1,56 +1,120 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FileText, Loader2, ArrowRight, PencilLine } from "lucide-react";
 
 const QuizTitle = () => {
-  // Initialize quizTitle with the value from localStorage (if available), otherwise default to an empty string
   const [quizTitle, setQuizTitle] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Handle form submission
-  const submitHandle = (e) => {
+  const submitHandle = async (e) => {
     e.preventDefault();
 
-    if (quizTitle.trim() === "") {
+    if (!quizTitle.trim()) {
       alert("Please enter a quiz title.");
       return;
     }
 
-    // Navigate to the next page, passing the quiz title as state
-    navigate("/post-ques", { state: { quizTitle } });
+    setIsLoading(true);
+
+    try {
+      // Simulate API call or validation if needed
+      setTimeout(() => {
+        navigate("/post-ques", { state: { quizTitle } });
+      }, 1000);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Failed to proceed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Optional: Update localStorage whenever the quizTitle changes (e.g., for persistence across page reloads)
-
   return (
-    <div>
-      <div
-        className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-white via-gray-100 to-gray-200 text-gray-800"
-        // data-aos="fade-zoom-in"
-      >
-        <h1 className="bg-gradient-to-r from-blue-400 to-teal-300 text-gray-900 text-4xl p-5 mb-10 rounded-3xl shadow-lg transition-transform duration-500 ease-in-out font-bold">
-          Quiz Title
-        </h1>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4 flex flex-col items-center justify-center">
+      <div className="w-full max-w-md space-y-4">
+        <div className="text-center space-y-2">
+          <div className="inline-block p-3 bg-blue-100 rounded-2xl mb-2">
+            <PencilLine className="h-6 w-6 text-blue-600" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Create New Quiz
+          </h1>
+          <p className="text-gray-500 max-w-sm mx-auto">
+            Start by giving your quiz a descriptive title that captures its
+            purpose
+          </p>
+        </div>
 
-        <form
-          onSubmit={submitHandle} // Use form submission instead of onClick
-          className="flex flex-col items-center bg-white bg-opacity-70 backdrop-blur-sm rounded-xl p-6 shadow-lg space-y-4 w-full max-w-md"
-        >
-          <input
-            type="text"
-            placeholder="Enter title for this quiz"
-            value={quizTitle}
-            onChange={(e) => setQuizTitle(e.target.value)} // Update quizTitle state on input change
-            className="w-full bg-white text-gray-800 border-2 border-gray-300 rounded-lg px-4 py-3 transition-shadow duration-300 focus:border-blue-400 focus:ring focus:ring-blue-200 focus:outline-none placeholder-gray-500"
-            required
-          />
-
-          <button
-            type="submit" // This triggers the form's submit event
-            className="w-full bg-gradient-to-r from-teal-400 to-blue-400 text-white rounded-full px-6 py-3 text-lg font-semibold shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
-          >
-            Submit
-          </button>
-        </form>
+        <Card className="shadow-lg border-0">
+          <CardHeader>
+            {/* <CardTitle className="text-xl font-semibold">
+              Quiz Details
+            </CardTitle>
+            <CardDescription>
+              Enter the title for your new quiz below
+            </CardDescription> */}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="quizTitle" className="text-sm font-medium">
+                Quiz Title
+              </Label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="quizTitle"
+                  type="text"
+                  placeholder="e.g., Mathematics Chapter 1 Quiz"
+                  value={quizTitle}
+                  onChange={(e) => setQuizTitle(e.target.value)}
+                  className="pl-10 h-12 border-gray-200"
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-4">
+            <Button
+              type="submit"
+              onClick={submitHandle}
+              className={`w-full h-12 text-base font-medium transition-all duration-200 ${
+                isLoading || !quizTitle.trim()
+                  ? "bg-gray-100 text-gray-400"
+                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
+              }`}
+              disabled={isLoading || !quizTitle.trim()}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <span>Creating Quiz...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <span>Continue to Questions</span>
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </div>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-gray-500 hover:text-gray-700"
+              onClick={() => navigate(-1)}
+            >
+              Back to Dashboard
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );

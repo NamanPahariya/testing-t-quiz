@@ -1,11 +1,30 @@
 import React, { useEffect, useState, useRef } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { CountdownCircleTimer } from "react-countdown-circle-timer";
+// import { CountdownCircleTimer } from "react-countdown-circle-timer";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Radio,
+  Trophy,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import CountdownTimer from "../ui/CountdownTimer";
 
 const QuizPage = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
-
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedOption, setSelectedOption] = useState("");
@@ -14,11 +33,12 @@ const QuizPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [waitingForNextQuestion, setWaitingForNextQuestion] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
-  const [isCorrectSelection, setIsCorrectSelection] = useState(null); // Track correctness
-  const [isSubmitted, setIsSubmitted] = useState(false); // Track if the answer is submitted
+  const [isCorrectSelection, setIsCorrectSelection] = useState(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const stompClientRef = useRef(null);
   const sessionCode = localStorage.getItem("sessionCode");
-  console.log(localStorage.getItem("sessionCode"));
+
+  // WebSocket connection and other existing functions remain the same
   useEffect(() => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
@@ -46,7 +66,7 @@ const QuizPage = () => {
             setWaitingForNextQuestion(false);
             setTimeUp(false);
             setIsCorrectSelection(null);
-            setIsSubmitted(false); // Reset submission status on new question
+            setIsSubmitted(false);
           }
         });
       },
@@ -72,15 +92,15 @@ const QuizPage = () => {
 
   const handleOptionChange = (optionValue) => {
     setSelectedOption(optionValue);
-    setIsCorrectSelection(null); // Reset correctness when option changes
-    setIsSubmitted(false); // Reset submission status when option changes
+    setIsCorrectSelection(null);
+    setIsSubmitted(false);
   };
 
   const handleSubmit = async () => {
     if (!selectedOption || !currentQuestion || timeUp) return;
 
     setIsSubmitting(true);
-    setIsSubmitted(true); // Mark the answer as submitted
+    setIsSubmitted(true);
     try {
       const requestBody = [
         {
@@ -92,16 +112,12 @@ const QuizPage = () => {
       ];
       const response = await fetch(`${baseUrl}/api/quiz/save`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       setWaitingForNextQuestion(true);
     } catch (error) {
       console.error("Error submitting answer:", error);
@@ -110,110 +126,186 @@ const QuizPage = () => {
     }
   };
 
-  // When time is up, check if selected option is correct or not, only if submitted
   useEffect(() => {
     if (timeUp && isSubmitted && selectedOption) {
       setIsCorrectSelection(selectedOption === currentQuestion.correctAnswer);
     }
   }, [timeUp, isSubmitted, selectedOption, currentQuestion]);
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-100 to-white p-8 relative">
-      {/* Show Timer only if there are questions */}
-      {questions.length > 0 && (
-        <div className="absolute top-5 right-5">
-          <CountdownCircleTimer
-            key={currentQuestion?.id} // Resets the timer on each new question
-            isPlaying
-            duration={15}
-            colors={["#4CAF50", "#D2691E", "#FF0000"]} // Green, Brown, Red
-            onUpdate={(remainingTime) => {
-              if (remainingTime <= 5) {
-                document.querySelector(".timer-circle").style.color = "#FF0000"; // Red when <= 5 seconds
-              } else if (remainingTime <= 10) {
-                document.querySelector(".timer-circle").style.color = "#D2691E"; // Brown when <= 10 seconds
-              } else {
-                document.querySelector(".timer-circle").style.color = "#4CAF50"; // Green when > 10 seconds
-              }
-            }}
-            onComplete={() => {
-              setTimeUp(true);
-              setWaitingForNextQuestion(true);
-              return { shouldRepeat: false };
-            }}
-          >
-            {({ remainingTime }) => (
-              <span className="timer-circle text-xl font-bold">
-                {remainingTime}s
-              </span>
-            )}
-          </CountdownCircleTimer>
+  const WelcomeContent = () => (
+    <div className="text-center space-y-6 py-8">
+      <div className="flex justify-center">
+        <Radio className="h-16 w-16 text-blue-500 animate-pulse" />
+      </div>
+      <CardTitle className="text-2xl text-blue-700">
+        Welcome to the Interactive Quiz!
+      </CardTitle>
+      <CardDescription className="text-lg">
+        Get ready for an exciting learning experience!
+      </CardDescription>
+      <div className="space-y-4 max-w-md mx-auto text-gray-600">
+        <div className="bg-blue-50 rounded-lg p-4">
+          <h3 className="font-semibold mb-2">How to Participate:</h3>
+          <ul className="text-sm space-y-2 text-left">
+            <li>• Questions will appear here when the host starts</li>
+            <li>• You'll have 15 seconds to answer each question</li>
+            <li>• Select your answer and click Submit</li>
+            <li>• Instant feedback will show if you're correct</li>
+          </ul>
         </div>
-      )}
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Stay on this page - the quiz will begin automatically
+          </AlertDescription>
+        </Alert>
+      </div>
+    </div>
+  );
 
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-xl border border-gray-300">
-        {quizEnded ? (
-          <p className="text-red-600 text-center text-xl font-bold">
-            {quizEndMessage ||
-              "The quiz has ended. Thank you for participating!"}
-          </p>
-        ) : questions.length > 0 ? (
-          <div>
-            <h2 className="text-3xl font-semibold text-blue-600 mb-6 shadow-md rounded-lg p-4 bg-gray-50">
-              Quiz Questions:
-            </h2>
-            <div className="text-lg text-gray-800 mt-4">
-              <strong>{currentQuestion?.questionText}</strong>
-              <ul className="mt-4 space-y-3">
-                {getOptionsArray(currentQuestion).map((option, i) => (
-                  <li key={i} className="mt-2">
-                    <label
-                      className={`flex items-center bg-gray-50 p-3 rounded-md shadow-sm border ${
-                        selectedOption === option.value && timeUp && isSubmitted
-                          ? isCorrectSelection
-                            ? "border-green-500 bg-green-100" // Correct option green
-                            : "border-red-500 bg-red-100" // Incorrect option red
-                          : "border-gray-200 hover:bg-blue-50"
-                      } transition duration-200`}
-                    >
-                      <input
-                        type="radio"
-                        value={option.value}
-                        checked={selectedOption === option.value}
-                        onChange={() => handleOptionChange(option.value)}
-                        className="mr-3 accent-blue-500"
-                        disabled={waitingForNextQuestion || timeUp}
-                      />
-                      {option.label}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </div>
+  if (quizEnded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <Card className="w-full max-w-xl">
+          <CardHeader className="text-center">
+            <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+            <CardTitle className="text-2xl font-bold text-gray-900">
+              Quiz Completed!
+            </CardTitle>
+            <CardDescription className="text-gray-600 mt-2">
+              {quizEndMessage ||
+                "The quiz has ended. Thank you for participating!"}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
-            <div className="mt-6">
-              <button
-                onClick={handleSubmit}
-                disabled={!selectedOption || isSubmitting || timeUp}
-                className="bg-gradient-to-r from-green-400 to-teal-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "Submitting..." : "Submit"}
-              </button>
-            </div>
-
-            {waitingForNextQuestion && (
-              <p className="mt-4 text-center text-yellow-600 font-semibold">
-                {timeUp
-                  ? "Time's up! Waiting for the next question..."
-                  : "Host hasn't changed the slide yet..."}
-              </p>
-            )}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
+      <div className="max-w-3xl mx-auto">
+        {questions.length > 0 && (
+          <div className="mb-6">
+            <Card className="bg-white/50 backdrop-blur-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold">Time Remaining</span>
+                  </div>
+                  <CountdownTimer
+                    key={currentQuestion?.id}
+                    duration={15}
+                    isPlaying={true}
+                    onComplete={() => {
+                      setTimeUp(true);
+                      setWaitingForNextQuestion(true);
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        ) : (
-          <p className="text-gray-700 text-center">
-            No questions broadcasted yet.
-          </p>
         )}
+
+        <Card className="border-none shadow-lg">
+          <CardContent>
+            {questions.length === 0 ? (
+              <WelcomeContent />
+            ) : (
+              <div className="space-y-6 py-6">
+                <CardHeader className="p-0">
+                  <CardTitle className="text-2xl text-blue-700">
+                    Current Question
+                  </CardTitle>
+                  <CardDescription>
+                    Select the best answer for the question below
+                  </CardDescription>
+                </CardHeader>
+
+                <div className="text-lg font-medium">
+                  {currentQuestion?.questionText}
+                </div>
+
+                <RadioGroup
+                  value={selectedOption}
+                  onValueChange={handleOptionChange}
+                  className="space-y-3"
+                  disabled={waitingForNextQuestion || timeUp}
+                >
+                  {getOptionsArray(currentQuestion).map((option, i) => {
+                    const isCorrectAnswer =
+                      currentQuestion.correctAnswer === option.value;
+                    const isSelectedOption = selectedOption === option.value;
+
+                    return (
+                      <div
+                        key={i}
+                        className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
+                          timeUp && isSubmitted
+                            ? isCorrectAnswer
+                              ? "border-green-500 bg-green-50"
+                              : isSelectedOption
+                              ? "border-red-500 bg-red-50"
+                              : "border-gray-200"
+                            : isSelectedOption
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <RadioGroupItem
+                          value={option.value}
+                          id={option.value}
+                        />
+                        <Label
+                          className="flex-1 cursor-pointer"
+                          htmlFor={option.value}
+                        >
+                          {option.label}
+                        </Label>
+
+                        {timeUp && isSubmitted && (
+                          <span className="absolute right-4">
+                            {isCorrectAnswer ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            ) : isSelectedOption ? (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            ) : null}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </RadioGroup>
+
+                <div className="flex justify-between items-center pt-4">
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={
+                      !selectedOption || isSubmitting || timeUp || isSubmitted
+                    }
+                    className="w-full max-w-xs mx-auto"
+                    variant={isSubmitting ? "outline" : "default"}
+                  >
+                    {isSubmitting ? "Submitting..." : "Submit Answer"}
+                  </Button>
+                </div>
+
+                {waitingForNextQuestion && (
+                  <Alert variant="warning" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {timeUp
+                        ? "Time's up! Wait for the next question..."
+                        : "Answer submitted. Wait for the next question..."}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

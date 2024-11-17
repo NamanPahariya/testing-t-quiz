@@ -1,25 +1,33 @@
 import React, { useEffect, useRef, useState } from "react";
-import Aos from "aos";
-import "aos/dist/aos.css";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Copy, Presentation, Users, Timer } from "lucide-react";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 const PresentQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
-
   const [questions, setQuestions] = useState([]);
-  const [tooltipMessage, setTooltipMessage] = useState("Copy to clipboard");
-  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const [tooltipMessage, setTooltipMessage] = useState("Copy code");
   const navigate = useNavigate();
   const stompClientRef = useRef(null);
   const location = useLocation();
-
   const { code } = location.state || {};
-
-  useEffect(() => {
-    Aos.init({ duration: 2000 });
-  }, []);
 
   const presentQuestions = () => {
     if (!stompClientRef.current) {
@@ -27,27 +35,18 @@ const PresentQues = () => {
       const client = new Client({
         webSocketFactory: () => socket,
         onConnect: () => {
-          console.log("WebSocket connected");
-
-          // Subscribe to receive session code
           client.subscribe(
             `/topic/quizQuestions/${code}`,
             (questionMessage) => {
               const broadcastedQuestions = JSON.parse(questionMessage.body);
               setQuestions(broadcastedQuestions);
-              console.log(
-                "Received questions for session:",
-                broadcastedQuestions
-              );
             }
           );
 
-          // Request to start quiz, triggering the session code generation
           client.publish({
             destination: `/app/broadcastQuestions/${code}`,
             body: JSON.stringify({}),
           });
-          console.log("Broadcasting questions for session:", code);
         },
         onWebSocketError: (error) => {
           console.error("WebSocket error:", error);
@@ -61,65 +60,125 @@ const PresentQues = () => {
 
   useEffect(() => {
     if (questions.length > 0) {
-      console.log("Navigating to PresentQues with questions:", questions);
       navigate("/questions", { state: { questions } });
       localStorage.setItem("code", code);
     }
   }, [questions, navigate]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(code).then(() => {
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
       setTooltipMessage("Copied!");
-      setTooltipVisible(true);
+      setIsTooltipOpen(true);
+
+      // Reset tooltip after 1.5 seconds
       setTimeout(() => {
-        setTooltipMessage("Copy to clipboard");
-        setTooltipVisible(false);
-      }, 2000);
-    });
+        setTooltipMessage("copy code");
+        setIsTooltipOpen(false);
+      }, 1200);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      setTooltipMessage("Failed to copy");
+      setIsTooltipOpen(true);
+
+      // Reset tooltip after error
+      setTimeout(() => {
+        setTooltipMessage("Copy code");
+        setIsTooltipOpen(false);
+      }, 1500);
+    }
   };
 
   return (
-    <div
-      className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-white via-gray-100 to-gray-200 text-gray-800"
-      data-aos="fade-zoom-in"
-    >
-      <h2 className="bg-gradient-to-r from-blue-400 to-teal-400 text-gray-900 text-3xl p-5 rounded-2xl shadow-md mb-8 font-bold">
-        Join at Telusko Quiz | Use code
-        <div className="relative inline-block ml-3">
-          <div
-            className={`absolute z-10 ${
-              tooltipVisible ? "visible opacity-100" : "invisible opacity-0"
-            } inline-block px-3 py-2 text-sm font-medium text-black bg-gray-100 transition-opacity duration-300 rounded-lg shadow-sm tooltip`}
-            style={{
-              bottom: "100%",
-              left: "50%",
-              transform: "translateX(-50%)",
-            }}
-          >
-            <span>{tooltipMessage}</span>
-          </div>
-
-          <span
-            className="flex items-center bg-gray-100 text-gray-700 border border-gray-300 rounded-lg p-2 cursor-pointer"
-            onClick={copyToClipboard}
-            onMouseOver={() => setTooltipVisible(true)}
-            onMouseLeave={() => setTooltipVisible(false)}
-          >
-            {code}
-          </span>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50">
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="text-center space-y-4 mb-12">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Telusko Quiz
+          </h1>
+          <p className="text-gray-600 text-lg">
+            Welcome to the live quiz experience
+          </p>
         </div>
-      </h2>
 
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md text-center">
-        <p className="text-gray-700 text-lg mb-4">
-          Use the above Quiz code to join the quiz.
-        </p>
-        <button
-          className="w-full bg-gradient-to-r from-green-400 to-teal-500 text-white rounded-lg px-8 py-3 font-semibold shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
-          onClick={presentQuestions}
-        >
-          Present Questions
-        </button>
+        <div className="grid gap-6">
+          <Card className="border-2 border-blue-100 shadow-lg">
+            <CardContent className="p-8">
+              <div className="flex flex-col items-center space-y-8">
+                <div className="w-full flex justify-center space-x-4">
+                  <Badge variant="secondary" className="text-sm">
+                    <Timer className="h-3 w-3 mr-1" />
+                    Ready to Start
+                  </Badge>
+                  <Badge variant="outline" className="text-sm">
+                    <Users className="h-3 w-3 mr-1" />0 Participants
+                  </Badge>
+                </div>
+
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl w-full max-w-md">
+                  <div className="text-center">
+                    <div className="text-md font-medium text-gray-600 mb-3">
+                      Quiz Code
+                    </div>
+                    <div className="flex items-center justify-center space-x-3">
+                      <code className="text-4xl font-mono font-bold text-blue-600">
+                        {code}
+                      </code>
+                      <TooltipProvider>
+                        <Tooltip open={isTooltipOpen}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={copyToClipboard}
+                              className="hover:bg-blue-100"
+                              onMouseEnter={() => setIsTooltipOpen(true)}
+                              onMouseLeave={() => {
+                                if (tooltipMessage === "Copy code") {
+                                  setIsTooltipOpen(false);
+                                }
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{tooltipMessage}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full max-w-md">
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Button
+                        size="lg"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md h-14 text-lg"
+                        onClick={presentQuestions}
+                      >
+                        <Presentation className="h-6 w-6 mr-2" />
+                        Present Questions
+                      </Button>
+                    </HoverCardTrigger>
+                    <HoverCardContent>
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold">
+                          Launch Interactive Session
+                        </h4>
+                        <p className="text-sm">
+                          Start the quiz for all participants
+                        </p>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

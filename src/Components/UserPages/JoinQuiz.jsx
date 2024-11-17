@@ -1,24 +1,33 @@
 import React, { useEffect, useState } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import Aos from "aos";
-import "aos/dist/aos.css";
-import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+// import { useToast } from "@/components/ui/use-toast";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Users, KeyRound, ArrowRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const JoinQuiz = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
-
   const [client, setClient] = useState(null);
   const [sessionCode, setSessionCode] = useState("");
   const [studentName, setStudentName] = useState("");
-
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
-    Aos.init({ duration: 2000 });
     return () => {
-      // Cleanup WebSocket connection
       if (client) {
         client.deactivate();
       }
@@ -44,17 +53,23 @@ const JoinQuiz = () => {
       }
 
       const responseData = await response.text();
-      console.log("Validation successful:", responseData);
-
       if (responseData.includes("Session code valid")) {
-        toast.success("Successfully validated!");
+        toast({
+          title: "Welcome",
+          description: `${studentName}! 😊`,
+          variant: "default",
+        });
         return true;
       } else {
         throw new Error("Unexpected response from server.");
       }
     } catch (error) {
       console.error("Validation error:", error);
-      toast.error(error.message);
+      toast({
+        // title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -75,7 +90,11 @@ const JoinQuiz = () => {
           },
           onWebSocketError: (error) => {
             console.error("WebSocket error:", error);
-            toast.error("WebSocket connection failed.");
+            toast({
+              title: "Connection Error",
+              description: "WebSocket connection failed.",
+              variant: "destructive",
+            });
             reject(error);
           },
         });
@@ -88,79 +107,121 @@ const JoinQuiz = () => {
 
   const joinQuiz = async () => {
     if (!studentName || !sessionCode) {
-      toast.error("Please enter your name and session code!");
+      toast({
+        title: "Validation Error",
+        description: "Please enter your name and session code!",
+        variant: "destructive",
+      });
       return;
     }
 
-    const isValid = await validateUser();
-    if (!isValid) {
-      setSessionCode("");
-      setStudentName("");
-      return;
-    }
+    setIsLoading(true);
 
     try {
+      const isValid = await validateUser();
+      if (!isValid) {
+        setSessionCode("");
+        setStudentName("");
+        setIsLoading(false);
+        return;
+      }
+
       const stompClient = await establishWebSocketConnection();
 
-      // Subscribe to the topic for joined students
       stompClient.subscribe("/topic/joinedStudents", (message) => {
         const response = message.body;
         console.log("Received join message:", response);
         navigate("/quiz");
       });
 
-      // Publish the joinQuiz message
       stompClient.publish({
         destination: "/app/joinQuiz",
         body: JSON.stringify({
           name: studentName,
           sessionCode: sessionCode,
         }),
-        headers: { "Content-Type": "application/json" }, // Add Content-Type header
+        headers: { "Content-Type": "application/json" },
       });
-
-      console.log(
-        `Sent joinQuiz message for ${studentName} with session code: ${sessionCode}`
-      );
 
       localStorage.setItem("sessionCode", sessionCode);
     } catch (error) {
       console.error("Error in joining quiz:", error);
-      toast.error("Could not join the quiz.");
+      toast({
+        title: "Error",
+        description: "Could not join the quiz.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div
-      className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-white via-gray-100 to-gray-200 text-gray-800"
-      data-aos="fade-zoom-in"
-    >
-      <h1 className="bg-gradient-to-r from-blue-400 to-teal-300 text-gray-900 text-4xl p-5 mb-10 rounded-3xl shadow-lg transition-transform duration-500 ease-in-out font-bold">
-        Join Quiz
-      </h1>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            Join Quiz Session
+          </CardTitle>
+          <CardDescription className="text-center text-gray-500">
+            Enter your details to join an active quiz
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">
+              Full Name
+            </Label>
+            <div className="relative">
+              <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter your full name"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
 
-      <div className="flex flex-col items-center bg-white bg-opacity-70 backdrop-blur-sm rounded-xl p-6 shadow-lg space-y-4 w-full max-w-md">
-        <input
-          type="text"
-          placeholder="Enter your name"
-          value={studentName}
-          onChange={(e) => setStudentName(e.target.value)}
-          className="w-full bg-white text-gray-800 border-2 border-gray-300 rounded-lg px-4 py-3 transition-shadow duration-300 focus:border-blue-400 focus:ring focus:ring-blue-200 focus:outline-none placeholder-gray-500"
-        />
-        <input
-          type="text"
-          placeholder="Enter session code"
-          value={sessionCode}
-          onChange={(e) => setSessionCode(e.target.value)}
-          className="w-full bg-white text-gray-800 border-2 border-gray-300 rounded-lg px-4 py-3 transition-shadow duration-300 focus:border-blue-400 focus:ring focus:ring-blue-200 focus:outline-none placeholder-gray-500"
-        />
-        <button
-          onClick={joinQuiz}
-          className="w-full bg-gradient-to-r from-teal-400 to-blue-400 text-white rounded-full px-6 py-3 text-lg font-semibold shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
-        >
-          Join Quiz
-        </button>
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="sessionCode" className="text-sm font-medium">
+              Quiz Code
+            </Label>
+            <div className="relative">
+              <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="sessionCode"
+                type="text"
+                placeholder="Enter quiz code"
+                value={sessionCode}
+                onChange={(e) => setSessionCode(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button
+            className="w-full font-semibold"
+            onClick={joinQuiz}
+            disabled={isLoading || !sessionCode || !studentName}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Joining...
+              </>
+            ) : (
+              <>
+                Join Quiz
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };
