@@ -185,7 +185,7 @@ const QuizPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-        {questions.length > 0 && (
+        {/* {questions.length > 0 && (
           <div className="mb-6">
             <Card className="bg-white/50 backdrop-blur-sm">
               <CardContent className="pt-6">
@@ -194,34 +194,38 @@ const QuizPage = () => {
                     <Clock className="w-5 h-5 text-blue-600" />
                     <span className="font-semibold">Time Remaining</span>
                   </div>
-                  <CountdownTimer
-                    key={currentQuestion?.id}
-                    duration={15}
-                    isPlaying={true}
-                    onComplete={() => {
-                      setTimeUp(true);
-                      setWaitingForNextQuestion(true);
-                    }}
-                  />
                 </div>
               </CardContent>
             </Card>
           </div>
-        )}
+        )} */}
 
         <Card className="border-none shadow-lg">
           <CardContent>
             {questions.length === 0 ? (
               <WelcomeContent />
             ) : (
-              <div className="space-y-6 py-6">
-                <CardHeader className="p-0">
-                  <CardTitle className="text-2xl text-blue-700">
-                    Current Question
-                  </CardTitle>
-                  <CardDescription>
-                    Select the best answer for the question below
-                  </CardDescription>
+              <div className="space-y-6 py-6 ">
+                <CardHeader className="p-0 flex flex-col items-start space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col items-start space-y-2">
+                    <CardTitle className="text-2xl text-blue-700">
+                      Current Question
+                    </CardTitle>
+                    <CardDescription>
+                      Select the best answer for the question below
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center ml-auto">
+                    <CountdownTimer
+                      key={currentQuestion?.id}
+                      duration={15}
+                      isPlaying={true}
+                      onComplete={() => {
+                        setTimeUp(true);
+                        setWaitingForNextQuestion(true);
+                      }}
+                    />
+                  </div>
                 </CardHeader>
 
                 <div className="text-lg font-medium">

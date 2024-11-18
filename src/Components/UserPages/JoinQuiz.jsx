@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { useNavigate } from "react-router-dom";
-// import { useToast } from "../ui/use-toast";
 import {
   Card,
   CardContent,
@@ -159,68 +158,77 @@ const JoinQuiz = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Join Quiz Session
-          </CardTitle>
-          <CardDescription className="text-center text-gray-500">
-            Enter your details to join an active quiz
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium">
-              Full Name
-            </Label>
-            <div className="relative">
-              <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your full name"
-                value={studentName}
-                onChange={(e) => setStudentName(e.target.value)}
-                className="pl-10"
-              />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault(); // Prevent default form submission
+            joinQuiz(); // Call joinQuiz on Enter or button click
+          }}
+        >
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">
+              Join Quiz Session
+            </CardTitle>
+            <CardDescription className="text-center text-gray-500">
+              Enter your details to join an active quiz
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">
+                Full Name
+              </Label>
+              <div className="relative">
+                <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sessionCode" className="text-sm font-medium">
-              Quiz Code
-            </Label>
-            <div className="relative">
-              <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="sessionCode"
-                type="text"
-                placeholder="Enter quiz code"
-                value={sessionCode}
-                onChange={(e) => setSessionCode(e.target.value)}
-                className="pl-10"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="sessionCode" className="text-sm font-medium">
+                Quiz Code
+              </Label>
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="sessionCode"
+                  type="text"
+                  placeholder="Enter quiz code"
+                  value={sessionCode}
+                  onChange={(e) => setSessionCode(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button
-            className="w-full font-semibold"
-            onClick={joinQuiz}
-            disabled={isLoading || !sessionCode || !studentName}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Joining...
-              </>
-            ) : (
-              <>
-                Join Quiz
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </CardFooter>
+          </CardContent>
+          <CardFooter>
+            <Button
+              className="w-full font-semibold"
+              // onClick={joinQuiz}
+              type="submit"
+              // onKeyDown={handleKeyDown}
+              disabled={isLoading || !sessionCode || !studentName}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  Join Quiz
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

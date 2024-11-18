@@ -170,7 +170,7 @@ const BroadcastQues = () => {
               key={currentQuestionIndex}
               isPlaying
               duration={15}
-              size={50}
+              size={90}
               strokeWidth={4}
               colors={["#10B981", "#F59E0B", "#EF4444"]}
               colorsTime={[10, 5, 0]}
