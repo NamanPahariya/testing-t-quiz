@@ -18,12 +18,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "../ui/hover-card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const PresentQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
