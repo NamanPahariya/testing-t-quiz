@@ -143,6 +143,7 @@ const JoinQuiz = () => {
       });
 
       localStorage.setItem("sessionCode", sessionCode);
+      localStorage.setItem("username", studentName);
     } catch (error) {
       console.error("Error in joining quiz:", error);
       toast({
