@@ -18,7 +18,12 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "../ui/hover-card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/alert-dialog";
 
 const PresentQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -42,21 +47,51 @@ const PresentQues = () => {
 
           // Subscribe to joined students topic to track participants
           client.subscribe("/topic/joinedStudents", (message) => {
-            const response = message.body;
-            // Extract username from the join message
-            const joinMessage = response;
-            console.log(response, "response");
-            if (joinMessage.includes("joined the quiz")) {
-              const username = joinMessage
-                .split("User ")[1]
-                .split(" joined")[0];
-              setParticipants((prev) => {
-                // Only add if not already in the list
-                if (!prev.find((p) => p.name === username)) {
-                  return [...prev, { name: username }];
-                }
-                return prev;
-              });
+            try {
+              const response = JSON.parse(message.body);
+              console.log("New participant joined:", response);
+
+              if (response.sessionCode && response.name) {
+                setParticipants((prev) => {
+                  // Only add if not already in the list
+                  if (!prev.find((p) => p.name === response.name)) {
+                    return [
+                      ...prev,
+                      {
+                        name: response.name,
+                        sessionCode: response.sessionCode,
+                      },
+                    ];
+                  }
+                  return prev;
+                });
+              }
+            } catch (error) {
+              console.error("Error parsing joined students message:", error);
+            }
+          });
+
+          // Subscribe to leave students topic
+          client.subscribe("/topic/LeaveStudents", (message) => {
+            try {
+              const response = message.body;
+              console.log("Participant left message:", response);
+
+              // Extract name from the response string
+              // Response format: "User {name} left the quiz with session code: {sessionCode}"
+              const match = response.match(/User (.*?) left the quiz/);
+              if (match && match[1]) {
+                const leavingUser = match[1];
+
+                // Remove the participant from the list
+                setParticipants((prev) =>
+                  prev.filter((p) => p.name !== leavingUser)
+                );
+
+                console.log(`Participant ${leavingUser} removed from the list`);
+              }
+            } catch (error) {
+              console.error("Error handling leave message:", error);
             }
           });
 

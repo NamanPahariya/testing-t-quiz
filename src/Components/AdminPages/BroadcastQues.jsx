@@ -9,14 +9,14 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "../ui/card";
-import { Button } from "../ui/button";
-import { Progress } from "../ui/progress";
-// import { Alert, AlertDescription } from "../ui/alert";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Label } from "../ui/label";
-import { Skeleton } from "../ui/skeleton";
-import { Timer } from "lucide-react";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Timer, ChevronRight } from "lucide-react";
+
+import useEmblaCarousel from "embla-carousel-react";
 
 const BroadcastQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -34,6 +34,7 @@ const BroadcastQues = () => {
   const [quizEnded, setQuizEnded] = useState(false);
   const [quizEndMessage, setQuizEndMessage] = useState("");
   const [progress, setProgress] = useState(0);
+  const [emblaRef, emblaApi] = useEmblaCarousel();
 
   const stompClientRef = useRef(null);
 
@@ -102,6 +103,10 @@ const BroadcastQues = () => {
       setCurrentQuestion(questions[nextIndex]);
       setProgress(((nextIndex + 1) / questions.length) * 100);
 
+      if (emblaApi) {
+        emblaApi.scrollNext();
+      }
+
       stompClientRef.current.publish({
         destination: `/app/nextQuestion/${code}`,
         body: JSON.stringify({ index: nextIndex }),
@@ -122,7 +127,6 @@ const BroadcastQues = () => {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <Card className="w-full max-w-xl">
           <CardHeader className="text-center">
-            {/* <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" /> */}
             <CardTitle className="text-2xl font-bold text-gray-900">
               Quiz Completed!
             </CardTitle>
@@ -184,50 +188,59 @@ const BroadcastQues = () => {
           <Progress value={progress} className="h-2" />
         </div>
 
-        <Card className="w-full">
-          <CardHeader>
-            {/* <Alert className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Select the correct answer below
-              </AlertDescription>
-            </Alert> */}
-            <CardTitle className="text-xl font-semibold leading-tight">
-              {currentQuestion.questionText}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup className="space-y-4">
-              {getOptionsArray(currentQuestion).map((option) => (
-                <div key={option.id} className="flex items-center space-x-2">
-                  {/* <RadioGroupItem
-                    value={option.id}
-                    id={option.id}
-                    className="border-gray-300"
-                  /> */}
-                  <Label
-                    htmlFor={option.id}
-                    className="flex-1 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    {option.value}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+        <div className="overflow-hidden" ref={emblaRef}>
+          <div className="flex">
+            {questions.map((question, index) => (
+              <div key={index} className="flex-[0_0_100%] min-w-0">
+                <Card className="w-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl font-semibold leading-tight">
+                      {question.questionText}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {getOptionsArray(question).map((option) => (
+                        <div
+                          key={option.id}
+                          className="flex items-center space-x-2"
+                        >
+                          <Label
+                            htmlFor={option.id}
+                            className="flex-1 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+                          >
+                            {option.value}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
 
-            <div className="flex justify-end mt-6">
-              <Button
-                onClick={presentNextQuestion}
-                className="px-6"
-                variant="default"
-              >
-                {currentQuestionIndex === questions.length - 1
-                  ? "Finish"
-                  : "Next Question"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                    <div className="flex justify-end mt-6">
+                      {index === questions.length - 1 ? (
+                        <Button
+                          onClick={presentNextQuestion}
+                          className="px-6"
+                          variant="default"
+                        >
+                          Finish
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={presentNextQuestion}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

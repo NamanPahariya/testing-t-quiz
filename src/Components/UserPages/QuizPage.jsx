@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-// import { CountdownCircleTimer } from "react-countdown-circle-timer";
+import { CountdownCircleTimer } from "react-countdown-circle-timer";
 import {
   Card,
   CardContent,
@@ -19,10 +19,21 @@ import {
   Clock,
   Radio,
   Trophy,
+  LogOut,
 } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
-import CountdownTimer from "../ui/CountdownTimer";
-
+import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 const QuizPage = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const [questions, setQuestions] = useState([]);
@@ -35,9 +46,10 @@ const QuizPage = () => {
   const [timeUp, setTimeUp] = useState(false);
   const [isCorrectSelection, setIsCorrectSelection] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [questionCount, setQuestionCount] = useState(1);
   const stompClientRef = useRef(null);
   const sessionCode = localStorage.getItem("sessionCode");
-
+  const navigate = useNavigate();
   // WebSocket connection and other existing functions remain the same
   useEffect(() => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
@@ -67,6 +79,7 @@ const QuizPage = () => {
             setTimeUp(false);
             setIsCorrectSelection(null);
             setIsSubmitted(false);
+            setQuestionCount((prev) => prev + 1);
           }
         });
       },
@@ -95,6 +108,58 @@ const QuizPage = () => {
     setIsCorrectSelection(null);
     setIsSubmitted(false);
   };
+
+  const handleLogout = () => {
+    const name = localStorage.getItem("username");
+    const sessionCode = localStorage.getItem("sessionCode");
+
+    try {
+      // Only attempt to publish and deactivate if the connection is active
+      if (stompClientRef.current && stompClientRef.current.connected) {
+        stompClientRef.current.publish({
+          destination: "/app/leaveQuiz",
+          body: JSON.stringify({ name, sessionCode }),
+        });
+        stompClientRef.current.deactivate();
+      }
+    } catch (error) {
+      console.warn("Error during STOMP cleanup:", error);
+    } finally {
+      // Always clean up localStorage and navigate
+      localStorage.removeItem("username");
+      localStorage.removeItem("sessionCode");
+      navigate("/join");
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      event.preventDefault();
+      handleLogout();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Handle page refresh/close
+  // useBeforeUnload(
+  //   React.useCallback((event) => {
+  //     handleLogout();
+  //     event.preventDefault();
+  //     return (event.returnValue =
+  //       "Are you sure you want to leave? You will be logged out of the quiz.");
+  //   }, [])
+  // );
+
+  // Handle component unmount
+  useEffect(() => {
+    return () => {
+      handleLogout();
+    };
+  }, []);
 
   const handleSubmit = async () => {
     if (!selectedOption || !currentQuestion || timeUp) return;
@@ -132,6 +197,34 @@ const QuizPage = () => {
     }
   }, [timeUp, isSubmitted, selectedOption, currentQuestion]);
 
+  const LogoutButton = ({ onLogout }) => (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          // variant="destructive"
+          className="fixed top-4 right-4 z-50"
+          size="sm"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          {/* Leave */}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure you want to leave?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will end your quiz session and you'll need to rejoin with a new
+            code.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onLogout}>Leave</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   const WelcomeContent = () => (
     <div className="text-center space-y-6 py-8">
       <div className="flex justify-center">
@@ -166,6 +259,7 @@ const QuizPage = () => {
   if (quizEnded) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <LogoutButton onLogout={handleLogout} />
         <Card className="w-full max-w-xl">
           <CardHeader className="text-center">
             <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
@@ -182,30 +276,42 @@ const QuizPage = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        {/* {questions.length > 0 && (
-          <div className="mb-6">
-            <Card className="bg-white/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-blue-600" />
-                    <span className="font-semibold">Time Remaining</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )} */}
+  const renderSubmitSection = () => {
+    if (isSubmitted || timeUp) {
+      return (
+        <Alert className="mt-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {timeUp
+              ? "Time's up! Wait for the next question..."
+              : "Answer submitted! Wait for the next question..."}
+          </AlertDescription>
+        </Alert>
+      );
+    }
 
+    return (
+      <Button
+        onClick={handleSubmit}
+        disabled={!selectedOption || isSubmitting}
+        className="w-full max-w-xs mx-auto"
+        variant={isSubmitting ? "outline" : "default"}
+      >
+        {isSubmitting ? "Submitting..." : "Submit Answer"}
+      </Button>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 overflow-x-hidden">
+      <LogoutButton onLogout={handleLogout} />
+      <div className="max-w-3xl mx-auto">
         <Card className="border-none shadow-lg">
           <CardContent>
             {questions.length === 0 ? (
               <WelcomeContent />
             ) : (
-              <div className="space-y-6 py-6 ">
+              <div className="space-y-6 py-6">
                 <CardHeader className="p-0 flex flex-col items-start space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-col items-start space-y-2">
                     <CardTitle className="text-2xl text-blue-700">
@@ -216,96 +322,94 @@ const QuizPage = () => {
                     </CardDescription>
                   </div>
                   <div className="flex items-center ml-auto">
-                    <CountdownTimer
+                    <CountdownCircleTimer
                       key={currentQuestion?.id}
-                      duration={15}
                       isPlaying={true}
+                      duration={15}
+                      size={90}
+                      strokeWidth={4}
+                      colors={["#10B981", "#F59E0B", "#EF4444"]}
+                      colorsTime={[10, 5, 0]}
                       onComplete={() => {
                         setTimeUp(true);
                         setWaitingForNextQuestion(true);
+                        return { shouldRepeat: false };
                       }}
-                    />
+                    >
+                      {({ remainingTime }) => (
+                        <span className="text-sm font-medium">
+                          {remainingTime}s
+                        </span>
+                      )}
+                    </CountdownCircleTimer>
                   </div>
                 </CardHeader>
 
-                <div className="text-lg font-medium">
-                  {currentQuestion?.questionText}
-                </div>
-
-                <RadioGroup
-                  value={selectedOption}
-                  onValueChange={handleOptionChange}
-                  className="space-y-3"
-                  disabled={waitingForNextQuestion || timeUp}
+                <div
+                  key={currentQuestion?.id}
+                  className={`relative ${
+                    questionCount > 1 ? "animate-slide-in-right" : ""
+                  } overflow-hidden`}
                 >
-                  {getOptionsArray(currentQuestion).map((option, i) => {
-                    const isCorrectAnswer =
-                      currentQuestion.correctAnswer === option.value;
-                    const isSelectedOption = selectedOption === option.value;
+                  <div className="text-lg font-medium mb-4">
+                    {currentQuestion?.questionText}
+                  </div>
 
-                    return (
-                      <div
-                        key={i}
-                        className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
-                          timeUp && isSubmitted
-                            ? isCorrectAnswer
-                              ? "border-green-500 bg-green-50"
+                  <RadioGroup
+                    value={selectedOption}
+                    onValueChange={handleOptionChange}
+                    className="space-y-3"
+                    disabled={waitingForNextQuestion || timeUp}
+                  >
+                    {getOptionsArray(currentQuestion).map((option, i) => {
+                      const isCorrectAnswer =
+                        currentQuestion.correctAnswer === option.value;
+                      const isSelectedOption = selectedOption === option.value;
+
+                      return (
+                        <div
+                          key={i}
+                          className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
+                            timeUp && isSubmitted
+                              ? isCorrectAnswer
+                                ? "border-green-500 bg-green-50"
+                                : isSelectedOption
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-200"
                               : isSelectedOption
-                              ? "border-red-500 bg-red-50"
-                              : "border-gray-200"
-                            : isSelectedOption
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <RadioGroupItem
-                          value={option.value}
-                          id={option.value}
-                        />
-                        <Label
-                          className="flex-1 cursor-pointer"
-                          htmlFor={option.value}
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
                         >
-                          {option.label}
-                        </Label>
+                          <RadioGroupItem
+                            value={option.value}
+                            id={option.value}
+                          />
+                          <Label
+                            className="flex-1 cursor-pointer"
+                            htmlFor={option.value}
+                          >
+                            {option.label}
+                          </Label>
 
-                        {timeUp && isSubmitted && (
-                          <span className="absolute right-4">
-                            {isCorrectAnswer ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            ) : isSelectedOption ? (
-                              <XCircle className="h-5 w-5 text-red-500" />
-                            ) : null}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </RadioGroup>
+                          {timeUp && isSubmitted && (
+                            <span className="absolute right-4">
+                              {isCorrectAnswer ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              ) : isSelectedOption ? (
+                                <XCircle className="h-5 w-5 text-red-500" />
+                              ) : null}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </RadioGroup>
+                </div>
 
                 <div className="flex justify-between items-center pt-4">
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={
-                      !selectedOption || isSubmitting || timeUp || isSubmitted
-                    }
-                    className="w-full max-w-xs mx-auto"
-                    variant={isSubmitting ? "outline" : "default"}
-                  >
-                    {isSubmitting ? "Submitting..." : "Submit Answer"}
-                  </Button>
+                  {renderSubmitSection()}
                 </div>
-
-                {waitingForNextQuestion && (
-                  <Alert variant="warning" className="mt-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      {timeUp
-                        ? "Time's up! Wait for the next question..."
-                        : "Answer submitted. Wait for the next question..."}
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
             )}
           </CardContent>
