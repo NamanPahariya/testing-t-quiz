@@ -41,6 +41,8 @@ const PostQues = () => {
   const location = useLocation();
   const { quizTitle } = location.state || {};
   const [sessionCode, setSessionCode] = useState("");
+  const [timeLimit, setTimeLimit] = useState(15);
+
   const [questions, setQuestions] = useState([
     {
       questionText: "",
@@ -51,6 +53,7 @@ const PostQues = () => {
       correctAnswer: "",
       sessionCode: sessionCode,
       title: quizTitle,
+      timeLimit,
     },
   ]);
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -103,6 +106,7 @@ const PostQues = () => {
         correctAnswer: "",
         sessionCode: sessionCode,
         title: quizTitle,
+        timeLimit,
       },
     ]);
   };
@@ -175,12 +179,30 @@ const PostQues = () => {
                           {question.questionText &&
                             ` - ${question.questionText.substring(0, 50)}...`}
                         </span>
-                        {question.correctAnswer && (
-                          <Badge variant="success" className="ml-2">
-                            <Check className="h-3 w-3 mr-1" />
-                            Answered
-                          </Badge>
-                        )}
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            placeholder="Time"
+                            value={question.timeLimit || ""} // Use empty string to allow clearing
+                            className="w-24 mr-4 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            onChange={(e) =>
+                              handleChange(
+                                index,
+                                "timeLimit",
+                                e.target.value === ""
+                                  ? null
+                                  : Number(e.target.value)
+                              )
+                            }
+                            min="1"
+                          />
+                          {question.correctAnswer && (
+                            <Badge variant="success" className="ml-2">
+                              <Check className="h-3 w-3 mr-1" />
+                              Answered
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pt-4">

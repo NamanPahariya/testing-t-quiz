@@ -325,11 +325,15 @@ const QuizPage = () => {
                     <CountdownCircleTimer
                       key={currentQuestion?.id}
                       isPlaying={true}
-                      duration={15}
+                      duration={currentQuestion.timeLimit}
                       size={90}
                       strokeWidth={4}
                       colors={["#10B981", "#F59E0B", "#EF4444"]}
-                      colorsTime={[10, 5, 0]}
+                      colorsTime={[
+                        Math.floor(currentQuestion.timeLimit * 0.7), // Green phase (70% of time)
+                        Math.floor(currentQuestion.timeLimit * 0.3), // Yellow phase (30% of time)
+                        0, // Red phase (last few seconds)
+                      ]}
                       onComplete={() => {
                         setTimeUp(true);
                         setWaitingForNextQuestion(true);
