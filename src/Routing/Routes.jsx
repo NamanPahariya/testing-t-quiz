@@ -7,6 +7,7 @@ import QuizTitle from "../Components/AdminPages/QuizTitle";
 import Dashboard from "../Components/AdminPages/AdminHome";
 import BroadcastQues from "../Components/AdminPages/BroadcastQues";
 import PresentQues from "../Components/AdminPages/PresentQues";
+import LeaderboardComponent from "../Components/AdminPages/LeaderboardComponent ";
 
 const ProtectedRoute = ({ children }) => {
   const username = localStorage.getItem("username");
@@ -29,7 +30,7 @@ const Routing = () => {
       <Route path="/present-quiz" element={<PresentQues />}></Route>
       <Route path="/questions" element={<BroadcastQues />}></Route>
       <Route path="/post-ques" element={<PostQues />}></Route>
-
+      <Route path="/leaderboard" element={<LeaderboardComponent />}></Route>
       {/* Users page */}
       <Route path="/join" element={<JoinQuiz />}></Route>
       <Route

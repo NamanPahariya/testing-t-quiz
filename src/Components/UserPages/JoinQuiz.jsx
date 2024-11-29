@@ -128,8 +128,13 @@ const JoinQuiz = () => {
       const stompClient = await establishWebSocketConnection();
 
       stompClient.subscribe("/topic/joinedStudents", (message) => {
-        const response = message.body;
+        const response = JSON.parse(message.body);
         console.log("Received join message:", response);
+
+        localStorage.setItem("username", studentName);
+        localStorage.setItem("sessionCode", sessionCode);
+        localStorage.setItem("userId", response.userid);
+
         navigate("/quiz");
       });
 
@@ -141,9 +146,6 @@ const JoinQuiz = () => {
         }),
         headers: { "Content-Type": "application/json" },
       });
-
-      localStorage.setItem("sessionCode", sessionCode);
-      localStorage.setItem("username", studentName);
     } catch (error) {
       console.error("Error in joining quiz:", error);
       toast({

@@ -49,6 +49,8 @@ const QuizPage = () => {
   const [questionCount, setQuestionCount] = useState(1);
   const stompClientRef = useRef(null);
   const sessionCode = localStorage.getItem("sessionCode");
+  const name = localStorage.getItem("username");
+  const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
   // WebSocket connection and other existing functions remain the same
   useEffect(() => {
@@ -110,9 +112,6 @@ const QuizPage = () => {
   };
 
   const handleLogout = () => {
-    const name = localStorage.getItem("username");
-    const sessionCode = localStorage.getItem("sessionCode");
-
     try {
       // Only attempt to publish and deactivate if the connection is active
       if (stompClientRef.current && stompClientRef.current.connected) {
@@ -128,6 +127,7 @@ const QuizPage = () => {
       // Always clean up localStorage and navigate
       localStorage.removeItem("username");
       localStorage.removeItem("sessionCode");
+      localStorage.removeItem("userId");
       navigate("/join");
     }
   };
@@ -173,6 +173,9 @@ const QuizPage = () => {
           selectedOption: selectedOption,
           isCorrect: selectedOption === currentQuestion.correctAnswer,
           timestamp: new Date().toISOString(),
+          name,
+          userId,
+          sessionCode,
         },
       ];
       const response = await fetch(`${baseUrl}/api/quiz/save`, {

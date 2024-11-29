@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Client } from "@stomp/stompjs";
 import { CountdownCircleTimer } from "react-countdown-circle-timer";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import SockJS from "sockjs-client";
 import {
   Card,
@@ -21,6 +21,7 @@ import useEmblaCarousel from "embla-carousel-react";
 const BroadcastQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const location = useLocation();
+  const navigate = useNavigate();
 
   const initialQuestions = useMemo(
     () => location.state?.questions || [],
@@ -190,6 +191,7 @@ const BroadcastQues = () => {
             </CountdownCircleTimer>
           </div>
           <Progress value={progress} className="h-2" />
+          <button onClick={() => navigate("/leaderboard")}>Leaderboard</button>
         </div>
 
         <div className="overflow-hidden" ref={emblaRef}>
