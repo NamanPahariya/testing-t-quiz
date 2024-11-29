@@ -7,7 +7,7 @@ import QuizTitle from "../Components/AdminPages/QuizTitle";
 import Dashboard from "../Components/AdminPages/AdminHome";
 import BroadcastQues from "../Components/AdminPages/BroadcastQues";
 import PresentQues from "../Components/AdminPages/PresentQues";
-import LeaderboardComponent from "../Components/AdminPages/LeaderboardComponent ";
+import LeaderboardComponent from "../Components/AdminPages/LeaderboardComponent";
 
 const ProtectedRoute = ({ children }) => {
   const username = localStorage.getItem("username");
