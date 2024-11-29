@@ -14,7 +14,7 @@ import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
-import { Timer, ChevronRight } from "lucide-react";
+import { Timer, ChevronRight, TrendingUp } from "lucide-react";
 
 import useEmblaCarousel from "embla-carousel-react";
 
@@ -134,6 +134,12 @@ const BroadcastQues = () => {
             <CardDescription className="text-gray-600 mt-2">
               {quizEndMessage}
             </CardDescription>
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/leaderboard")}
+            >
+              LeaderBoard <TrendingUp className="h-4 w-4" />
+            </Button>
           </CardHeader>
         </Card>
       </div>
@@ -191,7 +197,7 @@ const BroadcastQues = () => {
             </CountdownCircleTimer>
           </div>
           <Progress value={progress} className="h-2" />
-          <button onClick={() => navigate("/leaderboard")}>Leaderboard</button>
+          {/* <button onClick={() => navigate("/leaderboard")}>Leaderboard</button> */}
         </div>
 
         <div className="overflow-hidden" ref={emblaRef}>
