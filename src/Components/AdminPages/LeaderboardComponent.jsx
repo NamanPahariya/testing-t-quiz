@@ -19,7 +19,7 @@ const LeaderboardComponent = () => {
   const [topUsers, setTopUsers] = useState([]);
   const [stompClient, setStompClient] = useState(null);
 
-  const sessionCode = localStorage.getItem("sessionCode");
+  const sessionCode = localStorage.getItem("code");
   const userName = localStorage.getItem("username");
 
   useEffect(() => {
