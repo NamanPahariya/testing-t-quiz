@@ -9,11 +9,11 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Progress } from "../ui/progress";
+import { Label } from "../ui/label";
+import { Skeleton } from "../ui/skeleton";
 import { Timer, ChevronRight, TrendingUp } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 
