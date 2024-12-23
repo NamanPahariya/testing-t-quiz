@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { TrendingUp, CrownIcon } from "lucide-react";
+import { TrendingUp, Crown } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Bar,
   BarChart,
@@ -15,30 +14,25 @@ import {
 
 const LeaderboardComponent = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
-
   const [topUsers, setTopUsers] = useState([]);
-  const [stompClient, setStompClient] = useState(null);
-
   const sessionCode = localStorage.getItem("code");
-  console.log(sessionCode, "sessionCode");
   const userName = localStorage.getItem("username");
 
   useEffect(() => {
-    // Create WebSocket connection
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
         console.log("WebSocket connected");
-
-        // Subscribe to top 10 leaderboard
         client.subscribe(`/topic/leaderboard/${sessionCode}`, (message) => {
-          const leaderboardData = JSON.parse(message.body);
-          console.log(leaderboardData, "leaderboard");
-          setTopUsers(leaderboardData);
+          try {
+            const leaderboardData = JSON.parse(message.body);
+            setTopUsers(leaderboardData);
+          } catch (error) {
+            console.error("Error parsing leaderboard data:", error);
+          }
         });
 
-        // Request initial leaderboard data
         client.publish({
           destination: `/app/leaderboard/${sessionCode}`,
           body: JSON.stringify({}),
@@ -50,20 +44,15 @@ const LeaderboardComponent = () => {
       },
     });
 
-    // Activate the client
     client.activate();
-    setStompClient(client);
 
-    // Cleanup function
     return () => {
-      if (client) {
-        client.deactivate();
-      }
+      client.deactivate();
     };
-  }, [sessionCode, userName, baseUrl]);
+  }, [sessionCode, baseUrl]);
 
-  // Prepare data for bar chart
   const chartData = topUsers
+    .slice(0, 10) // Limit to top 10 to prevent performance issues
     .sort((a, b) => b.score - a.score)
     .map((user, index) => ({
       name: user.name,
@@ -72,14 +61,13 @@ const LeaderboardComponent = () => {
       rank: index + 1,
     }));
 
-  // Custom Tooltip
   const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
+    if (active && payload?.[0]?.payload) {
       const data = payload[0].payload;
       return (
         <div className="bg-white shadow-lg rounded-lg p-4 border">
           <div className="flex items-center gap-2">
-            {data.rank === 1 && <CrownIcon className="text-yellow-500" />}
+            {data.rank === 1 && <Crown className="text-yellow-500 h-4 w-4" />}
             <span className="font-bold text-gray-800">{data.name}</span>
           </div>
           <div className="text-sm text-gray-600">
@@ -91,25 +79,23 @@ const LeaderboardComponent = () => {
     return null;
   };
 
+  // Calculate fixed height based on number of entries
+  const chartHeight = Math.max(300, chartData.length * 50);
+
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Leaderboard</CardTitle>
-        <div className="flex gap-2 font-medium leading-none">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           Top players <TrendingUp className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={chartData.length * 50}>
+        <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             layout="vertical"
             data={chartData}
-            margin={{
-              left: 0,
-              top: 10,
-              bottom: 10,
-              right: 100,
-            }}
+            margin={{ left: 0, right: 100, top: 10, bottom: 10 }}
           >
             <XAxis type="number" hide />
             <YAxis
@@ -122,24 +108,21 @@ const LeaderboardComponent = () => {
             <Tooltip content={<CustomTooltip />} cursor={false} />
             <Bar
               dataKey="score"
-              layout="vertical"
               radius={[0, 5, 5, 0]}
-              label={(props) => {
-                const { x, y, width, value, index } = props;
-                const name = chartData[index]?.name || "";
-
-                return (
+              label={{
+                position: 'right',
+                content: ({ x, y, width, value, index }) => (
                   <text
                     x={x + width + 5}
                     y={y}
-                    fill="hsl(var(--foreground))"
+                    fill="currentColor"
                     textAnchor="start"
                     dominantBaseline="middle"
                     className="text-xs font-medium"
                   >
-                    {name}
+                    {chartData[index]?.name || ""}
                   </text>
-                );
+                ),
               }}
             />
           </BarChart>
