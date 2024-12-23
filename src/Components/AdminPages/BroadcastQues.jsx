@@ -9,13 +9,12 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "../ui/card";
-import { Button } from "../ui/button";
-import { Progress } from "../ui/progress";
-import { Label } from "../ui/label";
-import { Skeleton } from "../ui/skeleton";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Timer, ChevronRight, TrendingUp } from "lucide-react";
-
 import useEmblaCarousel from "embla-carousel-react";
 
 const BroadcastQues = () => {
@@ -39,12 +38,16 @@ const BroadcastQues = () => {
 
   const stompClientRef = useRef(null);
 
+  // Separate useEffect for initial setup
   useEffect(() => {
-    if (questions.length > 0) {
+    if (questions.length > 0 && !currentQuestion) {
       setCurrentQuestion(questions[0]);
       setProgress((1 / questions.length) * 100);
     }
+  }, [questions, currentQuestion]);
 
+  // Separate useEffect for WebSocket connection
+  useEffect(() => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
@@ -61,15 +64,7 @@ const BroadcastQues = () => {
           }
 
           const receivedQuestions = receivedData;
-
-          if (!quizEnded) {
-            setQuestions(receivedQuestions);
-            if (receivedQuestions.length > 0) {
-              setCurrentQuestion(receivedQuestions[0]);
-              setCurrentQuestionIndex(0);
-              setProgress((1 / receivedQuestions.length) * 100);
-            }
-          }
+          setQuestions(receivedQuestions);
         });
 
         client.subscribe(`/topic/currentQuestion/${code}`, (message) => {
@@ -83,9 +78,11 @@ const BroadcastQues = () => {
     stompClientRef.current.activate();
 
     return () => {
-      if (stompClientRef.current) stompClientRef.current.deactivate();
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
     };
-  }, [questions, quizEnded]);
+  }, []); // Empty dependency array since we only want to run this once
 
   const getOptionsArray = (question) => {
     if (!question) return [];
@@ -108,13 +105,13 @@ const BroadcastQues = () => {
         emblaApi.scrollNext();
       }
 
-      stompClientRef.current.publish({
+      stompClientRef.current?.publish({
         destination: `/app/nextQuestion/${code}`,
         body: JSON.stringify({ index: nextIndex }),
       });
     } else {
-      stompClientRef.current.publish({
-        destination: `/topic/quizQuestions/${code}`,
+      stompClientRef.current?.publish({
+        destination: `/topic/quizQuestions/${code}`, // Changed endpoint
         body: JSON.stringify({
           message: "The quiz has ended. Thank you for participating!",
           isQuizEnd: true,
@@ -134,12 +131,16 @@ const BroadcastQues = () => {
             <CardDescription className="text-gray-600 mt-2">
               {quizEndMessage}
             </CardDescription>
-            <Button
-              variant="secondary"
-              onClick={() => navigate("/leaderboard")}
-            >
-              LeaderBoard <TrendingUp className="h-4 w-4" />
-            </Button>
+            <div className="mt-4">
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/leaderboard")}
+                className="gap-2"
+              >
+                View Leaderboard
+                <TrendingUp className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
         </Card>
       </div>
