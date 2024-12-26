@@ -58,8 +58,10 @@ const QuizPage = () => {
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
+        console.log("Connected to WebSocket");
         client.subscribe(`/topic/quizQuestions/${sessionCode}`, (message) => {
           const broadcastedQuestions = JSON.parse(message.body);
+          console.log("Received questions:", broadcastedQuestions);
           if (broadcastedQuestions.isQuizEnd) {
             setQuizEnded(true);
             setQuizEndMessage(broadcastedQuestions.message);
@@ -74,8 +76,10 @@ const QuizPage = () => {
 
         client.subscribe(`/topic/currentQuestion/${sessionCode}`, (message) => {
           const newQuestion = JSON.parse(message.body);
+          console.log("Received new question:", newQuestion);
           if (!quizEnded && newQuestion) {
             setSelectedOption("");
+            setQuestions(newQuestion);
             setCurrentQuestion(newQuestion);
             setWaitingForNextQuestion(false);
             setTimeUp(false);
@@ -165,7 +169,6 @@ const QuizPage = () => {
     if (!selectedOption || !currentQuestion || timeUp) return;
 
     setIsSubmitting(true);
-    setIsSubmitted(true);
     try {
       const requestBody = [
         {
@@ -186,6 +189,7 @@ const QuizPage = () => {
 
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
+      setIsSubmitted(true);
       setWaitingForNextQuestion(true);
     } catch (error) {
       console.error("Error submitting answer:", error);
@@ -366,7 +370,7 @@ const QuizPage = () => {
                     value={selectedOption}
                     onValueChange={handleOptionChange}
                     className="space-y-3"
-                    disabled={waitingForNextQuestion || timeUp}
+                    disabled={waitingForNextQuestion || timeUp || isSubmitted}
                   >
                     {getOptionsArray(currentQuestion).map((option, i) => {
                       const isCorrectAnswer =

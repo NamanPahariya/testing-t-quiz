@@ -15,7 +15,6 @@ import { Progress } from "../ui/progress";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { Timer, ChevronRight, TrendingUp } from "lucide-react";
-import useEmblaCarousel from "embla-carousel-react";
 
 const BroadcastQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -34,20 +33,15 @@ const BroadcastQues = () => {
   const [quizEnded, setQuizEnded] = useState(false);
   const [quizEndMessage, setQuizEndMessage] = useState("");
   const [progress, setProgress] = useState(0);
-  const [emblaRef, emblaApi] = useEmblaCarousel();
 
   const stompClientRef = useRef(null);
 
-  // Separate useEffect for initial setup
   useEffect(() => {
-    if (questions.length > 0 && !currentQuestion) {
+    if (questions.length > 0) {
       setCurrentQuestion(questions[0]);
       setProgress((1 / questions.length) * 100);
     }
-  }, [questions, currentQuestion]);
 
-  // Separate useEffect for WebSocket connection
-  useEffect(() => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
@@ -64,7 +58,15 @@ const BroadcastQues = () => {
           }
 
           const receivedQuestions = receivedData;
-          setQuestions(receivedQuestions);
+
+          if (!quizEnded) {
+            setQuestions(receivedQuestions);
+            if (receivedQuestions.length > 0) {
+              setCurrentQuestion(receivedQuestions[0]);
+              setCurrentQuestionIndex(0);
+              setProgress((1 / receivedQuestions.length) * 100);
+            }
+          }
         });
 
         client.subscribe(`/topic/currentQuestion/${code}`, (message) => {
@@ -82,7 +84,7 @@ const BroadcastQues = () => {
         stompClientRef.current.deactivate();
       }
     };
-  }, []); // Empty dependency array since we only want to run this once
+  }, [questions, quizEnded]);
 
   const getOptionsArray = (question) => {
     if (!question) return [];
@@ -101,17 +103,13 @@ const BroadcastQues = () => {
       setCurrentQuestion(questions[nextIndex]);
       setProgress(((nextIndex + 1) / questions.length) * 100);
 
-      if (emblaApi) {
-        emblaApi.scrollNext();
-      }
-
-      stompClientRef.current?.publish({
+      stompClientRef.current.publish({
         destination: `/app/nextQuestion/${code}`,
         body: JSON.stringify({ index: nextIndex }),
       });
     } else {
-      stompClientRef.current?.publish({
-        destination: `/topic/quizQuestions/${code}`, // Changed endpoint
+      stompClientRef.current.publish({
+        destination: `/topic/quizQuestions/${code}`,
         body: JSON.stringify({
           message: "The quiz has ended. Thank you for participating!",
           isQuizEnd: true,
@@ -131,16 +129,12 @@ const BroadcastQues = () => {
             <CardDescription className="text-gray-600 mt-2">
               {quizEndMessage}
             </CardDescription>
-            <div className="mt-4">
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/leaderboard")}
-                className="gap-2"
-              >
-                View Leaderboard
-                <TrendingUp className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/leaderboard")}
+            >
+              LeaderBoard <TrendingUp className="h-4 w-4" />
+            </Button>
           </CardHeader>
         </Card>
       </div>
@@ -186,9 +180,9 @@ const BroadcastQues = () => {
               strokeWidth={4}
               colors={["#10B981", "#F59E0B", "#EF4444"]}
               colorsTime={[
-                Math.floor(currentQuestion.timeLimit * 0.7), // Green phase (70% of time)
-                Math.floor(currentQuestion.timeLimit * 0.3), // Yellow phase (30% of time)
-                0, // Red phase (last few seconds)
+                Math.floor(currentQuestion.timeLimit * 0.7),
+                Math.floor(currentQuestion.timeLimit * 0.3),
+                0,
               ]}
               onComplete={() => ({ shouldRepeat: false })}
             >
@@ -198,62 +192,53 @@ const BroadcastQues = () => {
             </CountdownCircleTimer>
           </div>
           <Progress value={progress} className="h-2" />
-          {/* <button onClick={() => navigate("/leaderboard")}>Leaderboard</button> */}
         </div>
 
-        <div className="overflow-hidden" ref={emblaRef}>
-          <div className="flex">
-            {questions.map((question, index) => (
-              <div key={index} className="flex-[0_0_100%] min-w-0">
-                <Card className="w-full">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-semibold leading-tight">
-                      {question.questionText}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {getOptionsArray(question).map((option) => (
-                        <div
-                          key={option.id}
-                          className="flex items-center space-x-2"
-                        >
-                          <Label
-                            htmlFor={option.id}
-                            className="flex-1 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                          >
-                            {option.value}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold leading-tight">
+              {currentQuestion.questionText}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {getOptionsArray(currentQuestion).map((option) => (
+                <div
+                  key={option.id}
+                  className="flex items-center space-x-2"
+                >
+                  <Label
+                    htmlFor={option.id}
+                    className="flex-1 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    {option.value}
+                  </Label>
+                </div>
+              ))}
+            </div>
 
-                    <div className="flex justify-end mt-6">
-                      {index === questions.length - 1 ? (
-                        <Button
-                          onClick={presentNextQuestion}
-                          className="px-6"
-                          variant="default"
-                        >
-                          Finish
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full"
-                          onClick={presentNextQuestion}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </div>
+            <div className="flex justify-end mt-6">
+              {currentQuestionIndex === questions.length - 1 ? (
+                <Button
+                  onClick={presentNextQuestion}
+                  className="px-6"
+                  variant="default"
+                >
+                  Finish
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={presentNextQuestion}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
