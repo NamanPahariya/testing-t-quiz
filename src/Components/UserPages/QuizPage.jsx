@@ -20,9 +20,13 @@ import {
   Radio,
   Trophy,
   LogOut,
+  TrendingUp,
+  CrownIcon,
+  Crown,
+  Medal
 } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
-import { useNavigate } from "react-router-dom";
+import { useBeforeUnload, useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,10 +38,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
+
+
 const QuizPage = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const [questions, setQuestions] = useState([]);
+  console.log('questions',questions);
+
   const [currentQuestion, setCurrentQuestion] = useState(null);
+  console.log(currentQuestion,'currentquestions')
   const [selectedOption, setSelectedOption] = useState("");
   const [quizEnded, setQuizEnded] = useState(false);
   const [quizEndMessage, setQuizEndMessage] = useState("");
@@ -47,6 +56,19 @@ const QuizPage = () => {
   const [isCorrectSelection, setIsCorrectSelection] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [questionCount, setQuestionCount] = useState(1);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(null);
+  const [leaderboard, setLeaderboard] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+    const [topUsers, setTopUsers] = useState([]);
+
+    const [userStats, setUserStats] = useState({
+      score: 0,
+      rank: 0,
+      name: localStorage.getItem("username")
+    });
+  
   const stompClientRef = useRef(null);
   const sessionCode = localStorage.getItem("sessionCode");
   const name = localStorage.getItem("username");
@@ -54,11 +76,18 @@ const QuizPage = () => {
   const navigate = useNavigate();
   // WebSocket connection and other existing functions remain the same
   useEffect(() => {
+    // const connectValue = localStorage.getItem('connected');
+    // console.log(connectValue,'connectedValue')
+    // if(!connectValue){
+    //   localStorage.setItem('connected',false);
+    //   return;
+    // }
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
         console.log("Connected to WebSocket");
+        // localStorage.setItem('connected',true);
         client.subscribe(`/topic/quizQuestions/${sessionCode}`, (message) => {
           const broadcastedQuestions = JSON.parse(message.body);
           console.log("Received questions:", broadcastedQuestions);
@@ -69,6 +98,7 @@ const QuizPage = () => {
           if (!quizEnded) {
             setQuestions(broadcastedQuestions);
             setCurrentQuestion(broadcastedQuestions[0]);
+            handleNewQuestion(broadcastedQuestions[0]);
             setWaitingForNextQuestion(false);
             setTimeUp(false);
           }
@@ -81,11 +111,51 @@ const QuizPage = () => {
             setSelectedOption("");
             setQuestions(newQuestion);
             setCurrentQuestion(newQuestion);
+            handleNewQuestion(newQuestion);
             setWaitingForNextQuestion(false);
             setTimeUp(false);
             setIsCorrectSelection(null);
             setIsSubmitted(false);
             setQuestionCount((prev) => prev + 1);
+          }
+        });
+
+        client.subscribe(`/topic/leaderboard/${sessionCode}`, (message) => {
+          const leaderboardData = JSON.parse(message.body);
+          if(leaderboardData){
+            setTopUsers(leaderboardData);
+            console.log(leaderboardData, "leaderboard");
+            console.log("Setting leaderboard state to true");
+          setLeaderboard(true);
+          setShowLeaderboard(true); 
+
+          const userLeaderboardSubscription = client.subscribe(
+            `/topic/userLeaderboard/${sessionCode}`, 
+            (userMessage) => {
+              const userDetails = JSON.parse(userMessage.body);
+              console.log(userDetails, "userDetails");
+              if (!userDetails.error && userDetails.name === name) {
+                console.log("updating for the current name", name);
+                setUserStats({
+                  score: userDetails.score,
+                  rank: userDetails.rank,
+                  name: userDetails.name
+                });
+              }
+            }
+          );
+
+          client.publish({
+            destination: `/app/userLeaderboard/${sessionCode}`,
+            body: name
+          });
+
+          // Clean up subscription when leaderboard is hidden
+          return () => {
+            userLeaderboardSubscription.unsubscribe();
+          };
+
+
           }
         });
       },
@@ -95,11 +165,54 @@ const QuizPage = () => {
     stompClientRef.current.activate();
 
     return () => {
+      console.log("Deactivating stompClient");
+
       if (stompClientRef.current) stompClientRef.current.deactivate();
     };
-  }, [quizEnded]);
+  }, []);
 
-  const getOptionsArray = (question) => {
+  const handleNewQuestion = (question) => {
+    if (!question || !question.timestamp) return;
+    
+    // Parse the question start time
+    const [hours, minutes, seconds] = question.timestamp.split(':').map(Number);
+    
+    // Get current time
+    const now = new Date();
+    const questionStart = new Date(now);
+    questionStart.setHours(hours, minutes, seconds, 0);
+    
+    // Calculate elapsed time in seconds
+    const elapsedSeconds = Math.floor((now - questionStart) / 1000);
+    
+    // Calculate remaining time
+    const remainingSeconds = Math.max(0, question.timeLimit - elapsedSeconds);
+    
+    setQuestionStartTime(question.timestamp);
+    setRemainingTime(remainingSeconds);
+    
+    // If time is already up when joining
+    if (remainingSeconds <= 0) {
+      setTimeUp(true);
+      setWaitingForNextQuestion(true);
+    }
+  };
+
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && currentQuestion) {
+        handleNewQuestion(currentQuestion);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currentQuestion]);
+  
+  const getOptionsArray = (question) => { 
     if (!question) return [];
     return [
       { label: question.option1, value: "option1" },
@@ -115,11 +228,11 @@ const QuizPage = () => {
     setIsSubmitted(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
       // Only attempt to publish and deactivate if the connection is active
       if (stompClientRef.current && stompClientRef.current.connected) {
-        stompClientRef.current.publish({
+       await stompClientRef.current.publish({
           destination: "/app/leaveQuiz",
           body: JSON.stringify({ name, sessionCode }),
         });
@@ -132,6 +245,8 @@ const QuizPage = () => {
       localStorage.removeItem("username");
       localStorage.removeItem("sessionCode");
       localStorage.removeItem("userId");
+      localStorage.removeItem("quizPageLeaving");
+
       navigate("/join");
     }
   };
@@ -149,19 +264,46 @@ const QuizPage = () => {
   }, []);
 
   // Handle page refresh/close
-  // useBeforeUnload(
-  //   React.useCallback((event) => {
-  //     handleLogout();
-  //     event.preventDefault();
-  //     return (event.returnValue =
-  //       "Are you sure you want to leave? You will be logged out of the quiz.");
-  //   }, [])
-  // );
-
-  // Handle component unmount
   useEffect(() => {
+    let isRefreshing = false;
+    let confirmationMessage = "Are you sure you want to leave? You will be logged out of the quiz.";
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && !isRefreshing) {
+        // Set a flag when leaving the page
+        localStorage.setItem("quizPageLeaving", "true");
+      }
+    };
+
+    const handleBeforeUnload = (event) => {
+      isRefreshing = true;
+      event.preventDefault();
+      event.returnValue = confirmationMessage;
+      return confirmationMessage;
+    };
+
+    // Check if we're returning from a refresh attempt
+    const wasLeaving = localStorage.getItem("quizPageLeaving");
+    if (wasLeaving === "true") {
+      // Clear the flag
+      localStorage.removeItem("quizPageLeaving");
+      
+      // Show a modal or handle the return as needed
+      const shouldStay = window.confirm(confirmationMessage);
+      if (!shouldStay) {
+        handleLogout();
+      }
+    }
+
+    // Add event listeners
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Cleanup
     return () => {
-      handleLogout();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      localStorage.removeItem("quizPageLeaving");
     };
   }, []);
 
@@ -263,7 +405,135 @@ const QuizPage = () => {
     </div>
   );
 
+  const chartData = topUsers
+  .sort((a, b) => b.score - a.score)
+  .map((user, index) => ({
+    name: user.name,
+    score: user.score,
+    fill: `hsl(var(--chart-${(index % 5) + 1}))`,
+    rank: index + 1,
+  }));
+
+// Custom Tooltip
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white shadow-lg rounded-lg p-4 border">
+        <div className="flex items-center gap-2">
+          {data.rank === 1 && <CrownIcon className="text-yellow-500" />}
+          <span className="font-bold text-gray-800">{data.name}</span>
+        </div>
+        <div className="text-sm text-gray-600">
+          Score: <span className="font-semibold">{data.score}</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+
+
+
+const getMedalIcon = (rank) => {
+  if (rank === 1) return <Crown className="w-6 h-6 text-yellow-500" />;
+  if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
+  if (rank === 3) return <Medal className="w-6 h-6 text-amber-600" />;
+  return null;
+};
+
   if (quizEnded) {
+    if (showLeaderboard && leaderboard) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+          <LogoutButton onLogout={handleLogout} />
+      {/* <UserStats /> */}
+
+          <div className="w-full max-w-3xl">
+            <Card className="w-full">
+            
+              <CardHeader className="text-center">
+                <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+                {userStats?.name && name && (
+            <div className="mx-6 my-4">
+              <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 border border-gray-100">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    {getMedalIcon(userStats.rank)}
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Your Performance</p>
+                      <p className="text-xl font-bold text-gray-900">{userStats.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-6">
+                    <div className="text-center px-4 py-2 bg-white rounded-lg shadow-sm">
+                      <p className="text-sm text-gray-500">Score</p>
+                      <p className="text-xl font-bold text-gray-900">{userStats.score}</p>
+                    </div>
+                    <div className="text-center px-4 py-2 bg-white rounded-lg shadow-sm">
+                      <p className="text-sm text-gray-500">Rank</p>
+                      <p className="text-xl font-bold text-gray-900">#{userStats.rank}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+              </CardHeader>
+
+              
+              {/* <CardContent>
+                <ResponsiveContainer width="100%" height={chartData.length * 50}>
+                  <BarChart
+                    layout="vertical"
+                    data={chartData}
+                    margin={{
+                      left: 0,
+                      top: 10,
+                      bottom: 10,
+                      right: 100,
+                    }}
+                  >
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      axisLine={false}
+                      tickLine={false}
+                      width={0}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={false} />
+                    <Bar
+                      dataKey="score"
+                      layout="vertical"
+                      radius={[0, 5, 5, 0]}
+                      label={(props) => {
+                        const { x, y, width, index } = props;
+                        const name = chartData[index]?.name || "";
+                        return (
+                          <text
+                            x={x + width + 5}
+                            y={y}
+                            fill="hsl(var(--foreground))"
+                            textAnchor="start"
+                            dominantBaseline="middle"
+                            className="text-xs font-medium"
+                          >
+                            {name}
+                          </text>
+                        );
+                      }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent> */}
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <LogoutButton onLogout={handleLogout} />
@@ -274,14 +544,78 @@ const QuizPage = () => {
               Quiz Completed!
             </CardTitle>
             <CardDescription className="text-gray-600 mt-2">
-              {quizEndMessage ||
-                "The quiz has ended. Thank you for participating!"}
+              {quizEndMessage || "The quiz has ended. Please wait for the final results..."}
             </CardDescription>
           </CardHeader>
         </Card>
       </div>
     );
   }
+
+
+  
+
+  // if (leaderboard && topUsers.length > 0) {
+  //   return (
+  //     <div>
+  //     <Card>
+  //       <CardHeader>
+  //         <CardTitle>Leaderboard</CardTitle>
+  //         <div className="flex gap-2 font-medium leading-none">
+  //           Top players <TrendingUp className="h-4 w-4" />
+  //         </div>
+  //       </CardHeader>
+  //       <CardContent>
+  //         <ResponsiveContainer width="100%" height={chartData.length * 50}>
+  //           <BarChart
+  //             layout="vertical"
+  //             data={chartData}
+  //             margin={{
+  //               left: 0,
+  //               top: 10,
+  //               bottom: 10,
+  //               right: 100,
+  //             }}
+  //           >
+  //             <XAxis type="number" hide />
+  //             <YAxis
+  //               dataKey="name"
+  //               type="category"
+  //               axisLine={false}
+  //               tickLine={false}
+  //               width={0}
+  //             />
+  //             <Tooltip content={<CustomTooltip />} cursor={false} />
+  //             <Bar
+  //               dataKey="score"
+  //               layout="vertical"
+  //               radius={[0, 5, 5, 0]}
+  //               label={(props) => {
+  //                 const { x, y, width, value, index } = props;
+  //                 const name = chartData[index]?.name || "";
+  
+  //                 return (
+  //                   <text
+  //                     x={x + width + 5}
+  //                     y={y}
+  //                     fill="hsl(var(--foreground))"
+  //                     textAnchor="start"
+  //                     dominantBaseline="middle"
+  //                     className="text-xs font-medium"
+  //                   >
+  //                     {name}
+  //                   </text>
+  //                 );
+  //               }}
+  //             />
+  //           </BarChart>
+  //         </ResponsiveContainer>
+  //       </CardContent>
+  //     </Card>
+  //     </div>
+  //   );
+  // }
+
 
   const renderSubmitSection = () => {
     if (isSubmitted || timeUp) {
@@ -329,24 +663,25 @@ const QuizPage = () => {
                     </CardDescription>
                   </div>
                   <div className="flex items-center ml-auto">
-                    <CountdownCircleTimer
-                      key={currentQuestion?.id}
-                      isPlaying={true}
-                      duration={currentQuestion.timeLimit}
-                      size={90}
-                      strokeWidth={4}
-                      colors={["#10B981", "#F59E0B", "#EF4444"]}
-                      colorsTime={[
-                        Math.floor(currentQuestion.timeLimit * 0.7), // Green phase (70% of time)
-                        Math.floor(currentQuestion.timeLimit * 0.3), // Yellow phase (30% of time)
-                        0, // Red phase (last few seconds)
-                      ]}
-                      onComplete={() => {
-                        setTimeUp(true);
-                        setWaitingForNextQuestion(true);
-                        return { shouldRepeat: false };
-                      }}
-                    >
+                  <CountdownCircleTimer
+        key={`${currentQuestion?.id}-${remainingTime}`}
+        isPlaying={!timeUp && !quizEnded}
+        duration={currentQuestion?.timeLimit || 0}
+        initialRemainingTime={remainingTime}
+        size={90}
+        strokeWidth={4}
+        colors={["#10B981", "#F59E0B", "#EF4444"]}
+        colorsTime={[
+          Math.floor((currentQuestion?.timeLimit || 0) * 0.7),
+          Math.floor((currentQuestion?.timeLimit || 0) * 0.3),
+          0,
+        ]}
+        onComplete={() => {
+          setTimeUp(true);
+          setWaitingForNextQuestion(true);
+          return { shouldRepeat: false };
+        }}
+      >
                       {({ remainingTime }) => (
                         <span className="text-sm font-medium">
                           {remainingTime}s
@@ -381,7 +716,7 @@ const QuizPage = () => {
                         <div
                           key={i}
                           className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
-                            timeUp && isSubmitted
+                            timeUp 
                               ? isCorrectAnswer
                                 ? "border-green-500 bg-green-50"
                                 : isSelectedOption
@@ -403,7 +738,7 @@ const QuizPage = () => {
                             {option.label}
                           </Label>
 
-                          {timeUp && isSubmitted && (
+                          {timeUp  && (
                             <span className="absolute right-4">
                               {isCorrectAnswer ? (
                                 <CheckCircle2 className="h-5 w-5 text-green-500" />
