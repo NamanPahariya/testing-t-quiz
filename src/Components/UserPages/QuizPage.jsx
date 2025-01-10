@@ -39,7 +39,7 @@ import {
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
 
-import WakeLockManager from "./WakeLockManager";
+// import WakeLockManager from "./WakeLockManager";
 
 const QuizPage = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -71,6 +71,8 @@ const QuizPage = () => {
     });
   
   const stompClientRef = useRef(null);
+  const heartbeatTimeoutRef = useRef(null);
+
   const sessionCode = localStorage.getItem("sessionCode");
   const name = localStorage.getItem("username");
   const userId = localStorage.getItem("userId");
@@ -86,6 +88,9 @@ const QuizPage = () => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
+      heartbeatIncoming: 15000, // 15 seconds, matching backend
+      heartbeatOutgoing: 15000, // 15 seconds, matching backend
+      reconnectDelay: 5000,     // 5 seconds delay before reconnect attempt
       onConnect: () => {
         console.log("Connected to WebSocket");
         // localStorage.setItem('connected',true);
@@ -151,6 +156,8 @@ const QuizPage = () => {
             body: name
           });
 
+          
+
           // Clean up subscription when leaderboard is hidden
           return () => {
             userLeaderboardSubscription.unsubscribe();
@@ -158,17 +165,60 @@ const QuizPage = () => {
 
 
           }
+          
         });
+        
       },
+      onStompError: (frame) => {
+        console.error('STOMP error:', frame);
+      },
+      onWebSocketClose: () => {
+        console.log('WebSocket connection closed');
+        // Clear any existing heartbeat timeout
+        if (heartbeatTimeoutRef.current) {
+          clearTimeout(heartbeatTimeoutRef.current);
+        }
+      },
+      onWebSocketError: (event) => {
+        console.error('WebSocket error:', event);
+      },
+      debug: (str) => {
+        console.debug(str);
+      }
     });
+
+    
 
     stompClientRef.current = client;
     stompClientRef.current.activate();
 
     return () => {
       console.log("Deactivating stompClient");
-
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+      }
       if (stompClientRef.current) stompClientRef.current.deactivate();
+    };
+  }, []);
+
+  useEffect(() => {
+    const checkConnection = () => {
+      if (stompClientRef.current && !stompClientRef.current.connected) {
+        console.log("Connection lost, attempting to reconnect...");
+        try {
+          stompClientRef.current.deactivate();
+          stompClientRef.current.activate();
+        } catch (error) {
+          console.error("Reconnection failed:", error);
+        }
+      }
+    };
+
+    // Check connection every 30 seconds (twice the heartbeat interval)
+    const connectionCheckInterval = setInterval(checkConnection, 30000);
+
+    return () => {
+      clearInterval(connectionCheckInterval);
     };
   }, []);
 
@@ -646,7 +696,7 @@ const getMedalIcon = (rank) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 overflow-x-hidden">
-          <WakeLockManager />
+         {/*<WakeLockManager /> */}
 
       <LogoutButton onLogout={handleLogout} />
       <div className="max-w-3xl mx-auto">
