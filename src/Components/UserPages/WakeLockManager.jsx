@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '../ui/alert';
 
 const WakeLockManager = () => {
   const [wakeLockActive, setWakeLockActive] = useState(false);
