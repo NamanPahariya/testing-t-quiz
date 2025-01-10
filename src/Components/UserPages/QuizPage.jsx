@@ -208,6 +208,7 @@ const QuizPage = () => {
         try {
           stompClientRef.current.deactivate();
           stompClientRef.current.activate();
+          console.log("Reconnection attempt initiated...");
         } catch (error) {
           console.error("Reconnection failed:", error);
         }
