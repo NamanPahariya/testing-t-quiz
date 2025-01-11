@@ -483,53 +483,80 @@ const QuizPage = () => {
 
 
 
-const getMedalIcon = (rank) => {
-  if (rank === 1) return <Crown className="w-6 h-6 text-yellow-500" />;
-  if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
-  if (rank === 3) return <Medal className="w-6 h-6 text-amber-600" />;
-  return null;
-};
-
+  const getMedalIcon = (rank) => {
+    if (rank === 1) return <Crown className="w-8 h-8 text-yellow-500 animate-bounce" />;
+    if (rank === 2) return <Medal className="w-8 h-8 text-gray-400 animate-pulse" />;
+    if (rank === 3) return <Medal className="w-8 h-8 text-amber-600 animate-pulse" />;
+    return null;
+  };
+  
   if (quizEnded) {
     if (showLeaderboard && leaderboard) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-          <LogoutButton onLogout={handleLogout} />
-      {/* <UserStats /> */}
-
-          <div className="w-full max-w-3xl">
-            <Card className="w-full">
-            
+          <div className="absolute top-4 right-4">
+            <LogoutButton onLogout={handleLogout} />
+          </div>
+  
+          <div className="w-full max-w-2xl transform transition-all duration-500 ease-in-out">
+            <Card className="w-full shadow-lg">
               <CardHeader className="text-center">
-                <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+                <Trophy className="w-16 h-16 mx-auto text-yellow-500 mb-2 animate-bounce" />
                 {userStats?.name && name && (
-            <div className="mx-6 my-4">
-              <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 border border-gray-100">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-3">
-                    {getMedalIcon(userStats.rank)}
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Your Performance</p>
-                      <p className="text-xl font-bold text-gray-900">{userStats.name}</p>
+                  <div className="space-y-6">
+                    {/* Profile Section */}
+                    <div className="flex flex-col items-center justify-center p-4">
+                      <div className="relative">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center mb-3 shadow-lg">
+                          {getMedalIcon(userStats.rank)}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-md">
+                          <div className="bg-green-500 rounded-full w-6 h-6 flex items-center justify-center">
+                            <p className="text-xs font-bold text-white">#{userStats.rank}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <h2 className="text-2xl font-bold text-gray-900 mt-2">{userStats.name}</h2>
+                      <p className="text-sm text-gray-500">Quiz Champion</p>
+                    </div>
+  
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-4 px-4 sm:px-6">
+                      <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-300 transform hover:-translate-y-1">
+                        <div className="flex flex-col items-center">
+                          <div className="rounded-full bg-blue-100 p-2 mb-2">
+                            <Trophy className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <p className="text-3xl font-bold text-gray-900">{userStats.score}</p>
+                          <p className="text-sm text-gray-500">Total Score</p>
+                        </div>
+                      </div>
+  
+                      <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-300 transform hover:-translate-y-1">
+                        <div className="flex flex-col items-center">
+                          <div className="rounded-full bg-purple-100 p-2 mb-2">
+                            <Medal className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <p className="text-3xl font-bold text-gray-900">#{userStats.rank}</p>
+                          <p className="text-sm text-gray-500">Global Rank</p>
+                        </div>
+                      </div>
+                    </div>
+  
+                    {/* Achievement Badge */}
+                    <div className="mt-6 px-4 sm:px-6">
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Crown className="w-5 h-5 text-yellow-500" />
+                          <p className="text-sm font-medium text-gray-700">
+                            {userStats.rank <= 3 ? "Top Performer!" : "Great Performance!"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center px-4 py-2 bg-white rounded-lg shadow-sm">
-                      <p className="text-sm text-gray-500">Score</p>
-                      <p className="text-xl font-bold text-gray-900">{userStats.score}</p>
-                    </div>
-                    <div className="text-center px-4 py-2 bg-white rounded-lg shadow-sm">
-                      <p className="text-sm text-gray-500">Rank</p>
-                      <p className="text-xl font-bold text-gray-900">#{userStats.rank}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                )}
               </CardHeader>
-
-           
             </Card>
           </div>
         </div>
@@ -537,11 +564,14 @@ const getMedalIcon = (rank) => {
     }
     
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <LogoutButton onLogout={handleLogout} />
-        <Card className="w-full max-w-xl">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+        <div className="absolute top-4 right-4">
+          <LogoutButton onLogout={handleLogout} />
+        </div>
+        
+        <Card className="w-full max-w-xl transform transition-all duration-500 ease-in-out hover:scale-105">
           <CardHeader className="text-center">
-            <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+            <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4 animate-bounce" />
             <CardTitle className="text-2xl font-bold text-gray-900">
               Quiz Completed!
             </CardTitle>
