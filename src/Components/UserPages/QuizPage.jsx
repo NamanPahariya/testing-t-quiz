@@ -78,13 +78,15 @@ const QuizPage = () => {
   const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
   // WebSocket connection and other existing functions remain the same
-  useEffect(() => {
+ 
     // const connectValue = localStorage.getItem('connected');
     // console.log(connectValue,'connectedValue')
     // if(!connectValue){
     //   localStorage.setItem('connected',false);
     //   return;
     // }
+
+    const connectWebSocket = () =>{
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
@@ -191,7 +193,10 @@ const QuizPage = () => {
 
     stompClientRef.current = client;
     stompClientRef.current.activate();
+  }
 
+  useEffect(() => {
+    connectWebSocket();
     return () => {
       console.log("Deactivating stompClient");
       if (heartbeatTimeoutRef.current) {
@@ -207,9 +212,9 @@ const QuizPage = () => {
         console.log("Connection lost, attempting to reconnect...");
         try {
           stompClientRef.current.deactivate();
-          stompClientRef.current.activate();
+          connectWebSocket();
           if(stompClientRef.current.connected){
-          console.log("Reconnection attempt initiated...");
+          console.log("Reconnection successful");
           }
         } catch (error) {
           console.error("Reconnection failed:", error);
@@ -218,7 +223,7 @@ const QuizPage = () => {
     };
 
     // Check connection every 30 seconds (twice the heartbeat interval)
-    const connectionCheckInterval = setInterval(checkConnection, 30000);
+    const connectionCheckInterval = setInterval(checkConnection, 10000);
 
     return () => {
       clearInterval(connectionCheckInterval);
