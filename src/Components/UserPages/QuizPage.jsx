@@ -253,8 +253,17 @@ const QuizPage = () => {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && currentQuestion) {
-        handleNewQuestion(currentQuestion);
+      if (document.visibilityState === "visible") {
+        // Check connection status when page becomes visible
+        if (stompClientRef.current && !stompClientRef.current.connected) {
+          console.log("Reconnecting after visibility change...");
+          stompClientRef.current.deactivate();
+          stompClientRef.current.activate();
+        }
+        // Existing question refresh logic
+        if (currentQuestion) {
+          handleNewQuestion(currentQuestion);
+        }
       }
     };
 
@@ -457,33 +466,9 @@ const QuizPage = () => {
     </div>
   );
 
-  const chartData = topUsers
-  .sort((a, b) => b.score - a.score)
-  .map((user, index) => ({
-    name: user.name,
-    score: user.score,
-    fill: `hsl(var(--chart-${(index % 5) + 1}))`,
-    rank: index + 1,
-  }));
+ 
 
-// Custom Tooltip
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white shadow-lg rounded-lg p-4 border">
-        <div className="flex items-center gap-2">
-          {data.rank === 1 && <CrownIcon className="text-yellow-500" />}
-          <span className="font-bold text-gray-800">{data.name}</span>
-        </div>
-        <div className="text-sm text-gray-600">
-          Score: <span className="font-semibold">{data.score}</span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
+
 
 
 
@@ -534,52 +519,7 @@ const getMedalIcon = (rank) => {
           )}
               </CardHeader>
 
-              
-              {/* <CardContent>
-                <ResponsiveContainer width="100%" height={chartData.length * 50}>
-                  <BarChart
-                    layout="vertical"
-                    data={chartData}
-                    margin={{
-                      left: 0,
-                      top: 10,
-                      bottom: 10,
-                      right: 100,
-                    }}
-                  >
-                    <XAxis type="number" hide />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      axisLine={false}
-                      tickLine={false}
-                      width={0}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={false} />
-                    <Bar
-                      dataKey="score"
-                      layout="vertical"
-                      radius={[0, 5, 5, 0]}
-                      label={(props) => {
-                        const { x, y, width, index } = props;
-                        const name = chartData[index]?.name || "";
-                        return (
-                          <text
-                            x={x + width + 5}
-                            y={y}
-                            fill="hsl(var(--foreground))"
-                            textAnchor="start"
-                            dominantBaseline="middle"
-                            className="text-xs font-medium"
-                          >
-                            {name}
-                          </text>
-                        );
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent> */}
+           
             </Card>
           </div>
         </div>
@@ -607,66 +547,6 @@ const getMedalIcon = (rank) => {
 
   
 
-  // if (leaderboard && topUsers.length > 0) {
-  //   return (
-  //     <div>
-  //     <Card>
-  //       <CardHeader>
-  //         <CardTitle>Leaderboard</CardTitle>
-  //         <div className="flex gap-2 font-medium leading-none">
-  //           Top players <TrendingUp className="h-4 w-4" />
-  //         </div>
-  //       </CardHeader>
-  //       <CardContent>
-  //         <ResponsiveContainer width="100%" height={chartData.length * 50}>
-  //           <BarChart
-  //             layout="vertical"
-  //             data={chartData}
-  //             margin={{
-  //               left: 0,
-  //               top: 10,
-  //               bottom: 10,
-  //               right: 100,
-  //             }}
-  //           >
-  //             <XAxis type="number" hide />
-  //             <YAxis
-  //               dataKey="name"
-  //               type="category"
-  //               axisLine={false}
-  //               tickLine={false}
-  //               width={0}
-  //             />
-  //             <Tooltip content={<CustomTooltip />} cursor={false} />
-  //             <Bar
-  //               dataKey="score"
-  //               layout="vertical"
-  //               radius={[0, 5, 5, 0]}
-  //               label={(props) => {
-  //                 const { x, y, width, value, index } = props;
-  //                 const name = chartData[index]?.name || "";
-  
-  //                 return (
-  //                   <text
-  //                     x={x + width + 5}
-  //                     y={y}
-  //                     fill="hsl(var(--foreground))"
-  //                     textAnchor="start"
-  //                     dominantBaseline="middle"
-  //                     className="text-xs font-medium"
-  //                   >
-  //                     {name}
-  //                   </text>
-  //                 );
-  //               }}
-  //             />
-  //           </BarChart>
-  //         </ResponsiveContainer>
-  //       </CardContent>
-  //     </Card>
-  //     </div>
-  //   );
-  // }
 
 
   const renderSubmitSection = () => {
