@@ -90,8 +90,8 @@ const QuizPage = () => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
-      heartbeatIncoming: 15000, // 15 seconds, matching backend
-      heartbeatOutgoing: 15000, // 15 seconds, matching backend
+      heartbeatIncoming: 25000, // 25 seconds, matching backend
+      heartbeatOutgoing: 25000, // 25 seconds, matching backend
       reconnectDelay: 5000,     // 5 seconds delay before reconnect attempt
       onConnect: () => {
         console.log("Connected to WebSocket");
@@ -223,7 +223,7 @@ const QuizPage = () => {
     };
 
     // Check connection every 30 seconds (twice the heartbeat interval)
-    const connectionCheckInterval = setInterval(checkConnection, 10000);
+    const connectionCheckInterval = setInterval(checkConnection, 50000);
 
     return () => {
       clearInterval(connectionCheckInterval);
@@ -265,7 +265,10 @@ const QuizPage = () => {
         if (stompClientRef.current && !stompClientRef.current.connected) {
           console.log("Reconnecting after visibility change...");
           stompClientRef.current.deactivate();
-          stompClientRef.current.activate();
+          connectWebSocket();
+          if(stompClientRef.current.connected){
+            console.log('reconnected successfully after visibility change');
+          }
         }
         // Existing question refresh logic
         if (currentQuestion) {
@@ -358,7 +361,7 @@ const QuizPage = () => {
       
       // Show a modal or handle the return as needed
       const shouldStay = window.confirm(confirmationMessage);
-      if (!shouldStay) {
+      if (shouldStay) {
         handleLogout();
       }
     }
