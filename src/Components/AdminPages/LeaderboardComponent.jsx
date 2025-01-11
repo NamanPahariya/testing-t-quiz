@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { TrendingUp, CrownIcon } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Bar,
   BarChart,
@@ -15,30 +14,25 @@ import {
 
 const LeaderboardComponent = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
-
   const [topUsers, setTopUsers] = useState([]);
   const [stompClient, setStompClient] = useState(null);
 
   const sessionCode = localStorage.getItem("code");
-  console.log(sessionCode, "sessionCode");
   const userName = localStorage.getItem("username");
 
   useEffect(() => {
-    // Create WebSocket connection
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
         console.log("WebSocket connected");
 
-        // Subscribe to top 10 leaderboard
         client.subscribe(`/topic/leaderboard/${sessionCode}`, (message) => {
           const leaderboardData = JSON.parse(message.body);
           console.log(leaderboardData, "leaderboard");
           setTopUsers(leaderboardData);
         });
 
-        // Request initial leaderboard data
         client.publish({
           destination: `/app/leaderboard/${sessionCode}`,
           body: JSON.stringify({}),
@@ -50,11 +44,9 @@ const LeaderboardComponent = () => {
       },
     });
 
-    // Activate the client
     client.activate();
     setStompClient(client);
 
-    // Cleanup function
     return () => {
       if (client) {
         client.deactivate();
@@ -62,7 +54,6 @@ const LeaderboardComponent = () => {
     };
   }, [sessionCode, userName, baseUrl]);
 
-  // Prepare data for bar chart
   const chartData = topUsers
     .sort((a, b) => b.score - a.score)
     .map((user, index) => ({
@@ -72,7 +63,6 @@ const LeaderboardComponent = () => {
       rank: index + 1,
     }));
 
-  // Custom Tooltip
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -105,7 +95,7 @@ const LeaderboardComponent = () => {
             layout="vertical"
             data={chartData}
             margin={{
-              left: 0,
+              left: 80,  // Increased left margin to accommodate score
               top: 10,
               bottom: 10,
               right: 100,
@@ -127,18 +117,33 @@ const LeaderboardComponent = () => {
               label={(props) => {
                 const { x, y, width, value, index } = props;
                 const name = chartData[index]?.name || "";
+                const score = chartData[index]?.score || 0;
 
                 return (
-                  <text
-                    x={x + width + 5}
-                    y={y}
-                    fill="hsl(var(--foreground))"
-                    textAnchor="start"
-                    dominantBaseline="middle"
-                    className="text-xs font-medium"
-                  >
-                    {name}
-                  </text>
+                  <g>
+                    {/* Score label on the left */}
+                    <text
+                      x={x - 2}
+                      y={y}
+                      fill="hsl(var(--foreground))"
+                      textAnchor="end"
+                      dominantBaseline="middle"
+                      className="text-md font-bold"
+                    >
+                      {score}
+                    </text>
+                    {/* Name label on the right */}
+                    <text
+                      x={x + width + 5}
+                      y={y}
+                      fill="hsl(var(--foreground))"
+                      textAnchor="start"
+                      dominantBaseline="middle"
+                      className="text-xs font-bold"
+                    >
+                      {name}
+                    </text>
+                  </g>
                 );
               }}
             />
