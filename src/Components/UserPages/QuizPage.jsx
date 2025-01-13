@@ -106,7 +106,7 @@ const QuizPage = () => {
           if (!quizEnded) {
             setQuestions(broadcastedQuestions);
             setCurrentQuestion(broadcastedQuestions[0]);
-            handleNewQuestion(broadcastedQuestions[0]);
+            // handleNewQuestion(broadcastedQuestions[0]);
             setWaitingForNextQuestion(false);
             setTimeUp(false);
           }
@@ -119,12 +119,28 @@ const QuizPage = () => {
             setSelectedOption("");
             setQuestions(newQuestion);
             setCurrentQuestion(newQuestion);
-            handleNewQuestion(newQuestion);
+            // handleNewQuestion(newQuestion);
             setWaitingForNextQuestion(false);
             setTimeUp(false);
             setIsCorrectSelection(null);
             setIsSubmitted(false);
             setQuestionCount((prev) => prev + 1);
+          }
+        });
+
+         // Subscribe to timer updates
+         client.subscribe(`/topic/timer/${sessionCode}`, (message) => {
+          const timerData = JSON.parse(message.body);
+          console.log("Timer update:", timerData);
+          
+          if (timerData.type === "TIMER") {
+            setRemainingTime(timerData.remainingTime);
+          } else if (timerData.type === "TIME_UP") {
+            setTimeUp(true);
+            setWaitingForNextQuestion(true);
+            if (currentQuestion && selectedOption) {
+              setIsCorrectSelection(selectedOption === currentQuestion.correctAnswer);
+            }
           }
         });
 
@@ -230,32 +246,32 @@ const QuizPage = () => {
     };
   }, []);
 
-  const handleNewQuestion = (question) => {
-    if (!question || !question.timestamp) return;
+  // const handleNewQuestion = (question) => {
+  //   if (!question || !question.timestamp) return;
     
-    // Parse the question start time
-    const [hours, minutes, seconds] = question.timestamp.split(':').map(Number);
+  //   // Parse the question start time
+  //   const [hours, minutes, seconds] = question.timestamp.split(':').map(Number);
     
-    // Get current time
-    const now = new Date();
-    const questionStart = new Date(now);
-    questionStart.setHours(hours, minutes, seconds, 0);
+  //   // Get current time
+  //   const now = new Date();
+  //   const questionStart = new Date(now);
+  //   questionStart.setHours(hours, minutes, seconds, 0);
     
-    // Calculate elapsed time in seconds
-    const elapsedSeconds = Math.floor((now - questionStart) / 1000);
+  //   // Calculate elapsed time in seconds
+  //   const elapsedSeconds = Math.floor((now - questionStart) / 1000);
     
-    // Calculate remaining time
-    const remainingSeconds = Math.max(0, question.timeLimit - elapsedSeconds);
+  //   // Calculate remaining time
+  //   const remainingSeconds = Math.max(0, question.timeLimit - elapsedSeconds);
     
-    setQuestionStartTime(question.timestamp);
-    setRemainingTime(remainingSeconds);
+  //   setQuestionStartTime(question.timestamp);
+  //   setRemainingTime(remainingSeconds);
     
-    // If time is already up when joining
-    if (remainingSeconds <= 0) {
-      setTimeUp(true);
-      setWaitingForNextQuestion(true);
-    }
-  };
+  //   // If time is already up when joining
+  //   if (remainingSeconds <= 0) {
+  //     setTimeUp(true);
+  //     setWaitingForNextQuestion(true);
+  //   }
+  // };
 
 
   useEffect(() => {
@@ -271,9 +287,9 @@ const QuizPage = () => {
           }
         }
         // Existing question refresh logic
-        if (currentQuestion) {
-          handleNewQuestion(currentQuestion);
-        }
+        // if (currentQuestion) {
+        //   handleNewQuestion(currentQuestion);
+        // }
       }
     };
 
@@ -585,6 +601,30 @@ const QuizPage = () => {
   }
 
 
+
+  const renderTimer = () => (
+    <CountdownCircleTimer
+      key={`${currentQuestion?.id}-${remainingTime}`}
+      isPlaying={!timeUp && !quizEnded && remainingTime > 0}
+      duration={currentQuestion?.timeLimit || 0}
+      initialRemainingTime={remainingTime}
+      size={90}
+      strokeWidth={4}
+      colors={["#10B981", "#F59E0B", "#EF4444"]}
+      colorsTime={[
+        Math.floor((currentQuestion?.timeLimit || 0) * 0.7),
+        Math.floor((currentQuestion?.timeLimit || 0) * 0.3),
+        0,
+      ]}
+      onComplete={() => ({ shouldRepeat: false })}
+    >
+      {({ remainingTime }) => (
+        <span className="text-sm font-medium">
+          {remainingTime}s
+        </span>
+      )}
+    </CountdownCircleTimer>
+  );
   
 
 
@@ -637,7 +677,7 @@ const QuizPage = () => {
                     </CardDescription>
                   </div>
                   <div className="flex items-center ml-auto">
-                  <CountdownCircleTimer
+                 {/* <CountdownCircleTimer
         key={`${currentQuestion?.id}-${remainingTime}`}
         isPlaying={!timeUp && !quizEnded}
         duration={currentQuestion?.timeLimit || 0}
@@ -661,7 +701,9 @@ const QuizPage = () => {
                           {remainingTime}s
                         </span>
                       )}
-                    </CountdownCircleTimer>
+                    </CountdownCircleTimer> */}                       
+                       {renderTimer()}
+   
                   </div>
                 </CardHeader>
 
