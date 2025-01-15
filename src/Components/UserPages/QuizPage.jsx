@@ -708,66 +708,67 @@ const QuizPage = () => {
                 </CardHeader>
 
                 <div
-                  key={currentQuestion?.id}
-                  className={`relative ${
-                    questionCount > 1 ? "animate-slide-in-right" : ""
-                  } overflow-hidden`}
+      key={currentQuestion?.id}
+      className={`relative ${
+        questionCount > 1 ? "animate-slide-in-right" : ""
+      } overflow-hidden`}
+    >
+      <div className="text-lg font-medium mb-4">
+        {currentQuestion?.questionText}
+      </div>
+
+      <RadioGroup
+        value={selectedOption}
+        onValueChange={handleOptionChange}
+        className="space-y-3"
+        disabled={waitingForNextQuestion || timeUp || isSubmitted}
+      >
+        {getOptionsArray(currentQuestion).map((option, i) => {
+          const isCorrectAnswer = currentQuestion.correctAnswer === option.value;
+          const isSelectedOption = selectedOption === option.value;
+
+          return (
+            <div
+              key={i}
+              className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
+                timeUp 
+                  ? isCorrectAnswer
+                    ? "border-green-500 bg-green-50"
+                    : isSelectedOption
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-200"
+                  : isSelectedOption
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <div className="flex min-w-0 flex-1 items-center space-x-2">
+                <RadioGroupItem
+                  value={option.value}
+                  id={option.value}
+                />
+                <Label
+                  className="cursor-pointer break-words pr-8"
+                  htmlFor={option.value}
                 >
-                  <div className="text-lg font-medium mb-4">
-                    {currentQuestion?.questionText}
-                  </div>
+                  {option.label}
+                </Label>
+              </div>
 
-                  <RadioGroup
-                    value={selectedOption}
-                    onValueChange={handleOptionChange}
-                    className="space-y-3"
-                    disabled={waitingForNextQuestion || timeUp || isSubmitted}
-                  >
-                    {getOptionsArray(currentQuestion).map((option, i) => {
-                      const isCorrectAnswer =
-                        currentQuestion.correctAnswer === option.value;
-                      const isSelectedOption = selectedOption === option.value;
-
-                      return (
-                        <div
-                          key={i}
-                          className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
-                            timeUp 
-                              ? isCorrectAnswer
-                                ? "border-green-500 bg-green-50"
-                                : isSelectedOption
-                                ? "border-red-500 bg-red-50"
-                                : "border-gray-200"
-                              : isSelectedOption
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                        >
-                          <RadioGroupItem
-                            value={option.value}
-                            id={option.value}
-                          />
-                          <Label
-                            className="flex-1 cursor-pointer"
-                            htmlFor={option.value}
-                          >
-                            {option.label}
-                          </Label>
-
-                          {timeUp  && (
-                            <span className="absolute right-4">
-                              {isCorrectAnswer ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                              ) : isSelectedOption ? (
-                                <XCircle className="h-5 w-5 text-red-500" />
-                              ) : null}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </RadioGroup>
+              {timeUp && (
+                <div className="absolute right-4 flex-shrink-0">
+                  {isCorrectAnswer ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : isSelectedOption ? (
+                    <XCircle className="h-5 w-5 text-red-500" />
+                  ) : null}
                 </div>
+              )}
+            </div>
+          );
+        })}
+      </RadioGroup>
+    </div>
 
                 <div className="flex justify-between items-center pt-4">
                   {renderSubmitSection()}
