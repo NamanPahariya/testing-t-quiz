@@ -23,7 +23,7 @@ import {
   TrendingUp,
   CrownIcon,
   Crown,
-  Medal
+  Medal,
 } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { useBeforeUnload, useNavigate } from "react-router-dom";
@@ -61,6 +61,7 @@ const QuizPage = () => {
   const [remainingTime, setRemainingTime] = useState(null);
   const [leaderboard, setLeaderboard] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [ElapsedTimes,setElapsedTimes] = useState(0);
 
     const [topUsers, setTopUsers] = useState([]);
 
@@ -418,6 +419,14 @@ const QuizPage = () => {
 
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
+      if(response.ok){
+        // console.log(response,'response')
+        const { message, elapsedTimes } = await response.json();
+const timeValue = elapsedTimes[0].ElapsedTime; 
+console.log('message:',message, "elsapsedTimes:",timeValue)
+setElapsedTimes(timeValue);
+        
+      }
       setIsSubmitted(true);
       setWaitingForNextQuestion(true);
     } catch (error) {
@@ -632,6 +641,7 @@ const QuizPage = () => {
   const renderSubmitSection = () => {
     if (isSubmitted || timeUp) {
       return (
+        <div className="space-y-4">
         <Alert className="mt-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -640,6 +650,22 @@ const QuizPage = () => {
               : "Answer submitted! Wait for the next question..."}
           </AlertDescription>
         </Alert>
+        
+        {isSubmitted && (
+  <Card className="w-full max-w-md mx-auto flex items-center justify-center">
+    <div className="flex items-center space-x-4 p-4">
+      <Clock className="h-5 w-5 text-blue-500" />
+      <span className="text-sm font-medium text-gray-600">Submission Time:</span>
+      <span className="text-lg font-semibold text-gray-700">
+        {ElapsedTimes} seconds
+      </span>
+    </div>
+  </Card>
+)}
+      </div>
+    
+
+        
       );
     }
 
