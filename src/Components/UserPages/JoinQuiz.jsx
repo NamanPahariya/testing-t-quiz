@@ -131,9 +131,9 @@ const JoinQuiz = () => {
         const response = JSON.parse(message.body);
         console.log("Received join message:", response);
 
-        localStorage.setItem("username", studentName);
-        localStorage.setItem("sessionCode", sessionCode);
-        localStorage.setItem("userId", response.userid);
+        sessionStorage.setItem("username", studentName);
+        sessionStorage.setItem("sessionCode", sessionCode);
+        sessionStorage.setItem("userId", response.userid);
 
         navigate("/quiz");
       });

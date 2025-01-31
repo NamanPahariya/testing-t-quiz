@@ -10,8 +10,8 @@ import PresentQues from "../Components/AdminPages/PresentQues";
 import LeaderboardComponent from "../Components/AdminPages/LeaderboardComponent";
 
 const ProtectedRoute = ({ children }) => {
-  const username = localStorage.getItem("username");
-  const sessionCode = localStorage.getItem("sessionCode");
+  const username = sessionStorage.getItem("username");
+  const sessionCode = sessionStorage.getItem("sessionCode");
 
   if (!username || !sessionCode) {
     // Redirect to join page if credentials are not found

@@ -18,7 +18,7 @@ const LeaderboardComponent = () => {
   const [stompClient, setStompClient] = useState(null);
 
   const sessionCode = localStorage.getItem("code");
-  const userName = localStorage.getItem("username");
+  const userName = sessionStorage.getItem("username");
 
   useEffect(() => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
@@ -95,7 +95,7 @@ const LeaderboardComponent = () => {
             layout="vertical"
             data={chartData}
             margin={{
-              left: 80,  // Increased left margin to accommodate score
+              left: 50,  // Increased left margin to accommodate score
               top: 10,
               bottom: 10,
               right: 100,
@@ -123,12 +123,12 @@ const LeaderboardComponent = () => {
                   <g>
                     {/* Score label on the left */}
                     <text
-                      x={x - 2}
+                      x={x - 8}
                       y={y}
                       fill="hsl(var(--foreground))"
                       textAnchor="end"
                       dominantBaseline="middle"
-                      className="text-md font-bold"
+                      className="text-xs font-bold"
                     >
                       {score}
                     </text>

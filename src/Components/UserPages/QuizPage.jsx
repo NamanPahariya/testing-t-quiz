@@ -24,6 +24,7 @@ import {
   CrownIcon,
   Crown,
   Medal,
+  Timer
 } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { useBeforeUnload, useNavigate } from "react-router-dom";
@@ -39,6 +40,8 @@ import {
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
 
+import { Progress } from "../ui/progress";
+
 // import WakeLockManager from "./WakeLockManager";
 
 const QuizPage = () => {
@@ -46,7 +49,7 @@ const QuizPage = () => {
   const [questions, setQuestions] = useState([]);
   console.log('questions',questions);
 
-  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState([]);
   console.log(currentQuestion,'currentquestions')
   const [selectedOption, setSelectedOption] = useState("");
   const [quizEnded, setQuizEnded] = useState(false);
@@ -62,30 +65,27 @@ const QuizPage = () => {
   const [leaderboard, setLeaderboard] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [ElapsedTimes,setElapsedTimes] = useState(0);
+  const [showRefreshMessage, setShowRefreshMessage] = useState(false);
+
+
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
 
     const [topUsers, setTopUsers] = useState([]);
 
     const [userStats, setUserStats] = useState({
       score: 0,
       rank: 0,
-      name: localStorage.getItem("username")
+      name: sessionStorage.getItem("username")
     });
   
   const stompClientRef = useRef(null);
   const heartbeatTimeoutRef = useRef(null);
 
-  const sessionCode = localStorage.getItem("sessionCode");
-  const name = localStorage.getItem("username");
-  const userId = localStorage.getItem("userId");
+  const sessionCode = sessionStorage.getItem("sessionCode");
+  const name = sessionStorage.getItem("username");
+  const userId = sessionStorage.getItem("userId");
   const navigate = useNavigate();
-  // WebSocket connection and other existing functions remain the same
- 
-    // const connectValue = localStorage.getItem('connected');
-    // console.log(connectValue,'connectedValue')
-    // if(!connectValue){
-    //   localStorage.setItem('connected',false);
-    //   return;
-    // }
 
     const connectWebSocket = () =>{
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
@@ -118,7 +118,12 @@ const QuizPage = () => {
           console.log("Received new question:", newQuestion);
           if (!quizEnded && newQuestion) {
             setSelectedOption("");
-            setQuestions(newQuestion);
+            setQuestions(prevQuestions => {
+              const newIndex = prevQuestions.findIndex(q => q.id === newQuestion.id);
+              setCurrentQuestionIndex(newIndex !== -1 ? newIndex : prevQuestions.length);
+              setProgress(((newIndex + 1) / prevQuestions.length) * 100);
+              return prevQuestions;
+            });
             setCurrentQuestion(newQuestion);
             // handleNewQuestion(newQuestion);
             setWaitingForNextQuestion(false);
@@ -128,6 +133,7 @@ const QuizPage = () => {
             setQuestionCount((prev) => prev + 1);
           }
         });
+
 
          // Subscribe to timer updates
          client.subscribe(`/topic/timer/${sessionCode}`, (message) => {
@@ -330,10 +336,10 @@ const QuizPage = () => {
       console.warn("Error during STOMP cleanup:", error);
     } finally {
       // Always clean up localStorage and navigate
-      localStorage.removeItem("username");
-      localStorage.removeItem("sessionCode");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("quizPageLeaving");
+      sessionStorage.removeItem("username");
+      sessionStorage.removeItem("sessionCode");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("quizPageLeaving");
 
       navigate("/join");
     }
@@ -353,45 +359,53 @@ const QuizPage = () => {
 
   // Handle page refresh/close
   useEffect(() => {
-    let isRefreshing = false;
-    let confirmationMessage = "Are you sure you want to leave? You will be logged out of the quiz.";
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && !isRefreshing) {
-        // Set a flag when leaving the page
-        localStorage.setItem("quizPageLeaving", "true");
-      }
-    };
-
+    const confirmationMessage = "Are you sure you want to leave? You will be logged out of the quiz.";
+    let isUnloading = false;
+  
     const handleBeforeUnload = (event) => {
-      isRefreshing = true;
+      // Set flag only when actually unloading (refresh/close/navigate)
+      sessionStorage.setItem("quizPageLeaving", "true");
       event.preventDefault();
       event.returnValue = confirmationMessage;
       return confirmationMessage;
     };
-
-    // Check if we're returning from a refresh attempt
-    const wasLeaving = localStorage.getItem("quizPageLeaving");
-    if (wasLeaving === "true") {
-      // Clear the flag
-      localStorage.removeItem("quizPageLeaving");
-      
-      // Show a modal or handle the return as needed
+  
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        // Tab switched or minimized
+        sessionStorage.setItem("quizPageLeaving", "true");
+      } else {
+        // Tab became active again - clear flag if still present
+        sessionStorage.removeItem("quizPageLeaving");
+      }
+    };
+  
+    // Check for existing flag on mount
+    const wasLeaving = sessionStorage.getItem("quizPageLeaving");
+    if (wasLeaving) {
+      sessionStorage.removeItem("quizPageLeaving");
       const shouldStay = window.confirm(confirmationMessage);
-      if (shouldStay) {
+      if (!shouldStay) {
+        setShowRefreshMessage(true);
+        setWaitingForNextQuestion(true);
+      } else {
         handleLogout();
       }
     }
-
+  
     // Add event listeners
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Cleanup
+  
     return () => {
+      // Cleanup listeners
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      localStorage.removeItem("quizPageLeaving");
+      
+      // Clear flag if component unmounts without page unload
+      if (!isUnloading) {
+        sessionStorage.removeItem("quizPageLeaving");
+      }
     };
   }, []);
 
@@ -504,14 +518,38 @@ setElapsedTimes(timeValue);
  
 
 
-
+  // Add RefreshMessage component
+  const RefreshMessage = () => (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <Card className="w-full max-w-xl shadow-lg">
+        <CardHeader className="text-center">
+          <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+          <CardTitle className="text-2xl font-bold text-gray-900">
+            Page Refreshed
+          </CardTitle>
+          <CardDescription className="text-gray-600 mt-4">
+            Please wait for the next question to be displayed. You'll be able to continue when the next question appears.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center mt-4">
+            <div className="flex space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
 
 
   const getMedalIcon = (rank) => {
-    if (rank === 1) return <Crown className="w-8 h-8 text-yellow-500 animate-bounce" />;
-    if (rank === 2) return <Medal className="w-8 h-8 text-gray-400 animate-pulse" />;
-    if (rank === 3) return <Medal className="w-8 h-8 text-amber-600 animate-pulse" />;
+    if (rank === 1) return <Crown className="w-8 h-8 text-yellow-500" />;
+    if (rank === 2) return <Medal className="w-8 h-8 text-gray-400" />;
+    if (rank === 3) return <Medal className="w-8 h-8 text-amber-600" />;
     return null;
   };
   
@@ -526,23 +564,26 @@ setElapsedTimes(timeValue);
           <div className="w-full max-w-2xl transform transition-all duration-500 ease-in-out">
             <Card className="w-full shadow-lg">
               <CardHeader className="text-center">
+                {userStats.rank === 1 &&
                 <Trophy className="w-16 h-16 mx-auto text-yellow-500 mb-2 animate-bounce" />
+    }
                 {userStats?.name && name && (
                   <div className="space-y-6">
                     {/* Profile Section */}
                     <div className="flex flex-col items-center justify-center p-4">
                       <div className="relative">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center mb-3 shadow-lg">
-                          {getMedalIcon(userStats.rank)}
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center mb-3 shadow-lg animate-pulse">
+                        {userStats.rank <= 3 ? getMedalIcon(userStats.rank) : <span className="text-2xl font-bold text-yellow-600">#{userStats.rank}</span>}
                         </div>
+                        {userStats.rank<=3?
                         <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-md">
                           <div className="bg-green-500 rounded-full w-6 h-6 flex items-center justify-center">
                             <p className="text-xs font-bold text-white">#{userStats.rank}</p>
                           </div>
-                        </div>
+                        </div>:''}
                       </div>
                       <h2 className="text-2xl font-bold text-gray-900 mt-2">{userStats.name}</h2>
-                      <p className="text-sm text-gray-500">Quiz Champion</p>
+                      <p className="text-sm text-gray-500">Quiz Stats</p>
                     </div>
   
                     {/* Stats Grid */}
@@ -589,14 +630,14 @@ setElapsedTimes(timeValue);
     }
     
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
         <div className="absolute top-4 right-4">
           <LogoutButton onLogout={handleLogout} />
         </div>
         
         <Card className="w-full max-w-xl transform transition-all duration-500 ease-in-out hover:scale-105">
           <CardHeader className="text-center">
-            <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4 animate-bounce" />
+            <Trophy className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
             <CardTitle className="text-2xl font-bold text-gray-900">
               Quiz Completed!
             </CardTitle>
@@ -605,10 +646,23 @@ setElapsedTimes(timeValue);
             </CardDescription>
           </CardHeader>
         </Card>
+         {/* Loading animation and message */}
+         <div className="mt-8 flex flex-col items-center space-y-4">
+            <div className="flex justify-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+            <div className="text-sm font-medium text-gray-600 animate-pulse text-center">
+              Stay tuned! Leaderboard coming soon...
+            </div>
+            <div className="text-xs text-gray-500">
+              Don't leave just yet - see where you rank among others!
+            </div>
+          </div>
       </div>
     );
   }
-
 
 
   const renderTimer = () => (
@@ -634,6 +688,7 @@ setElapsedTimes(timeValue);
       )}
     </CountdownCircleTimer>
   );
+
   
 
 
@@ -650,7 +705,6 @@ setElapsedTimes(timeValue);
               : "Answer submitted! Wait for the next question..."}
           </AlertDescription>
         </Alert>
-        
         {isSubmitted && (
   <Card className="w-full max-w-md mx-auto flex items-center justify-center">
     <div className="flex items-center space-x-4 p-4">
@@ -663,9 +717,6 @@ setElapsedTimes(timeValue);
   </Card>
 )}
       </div>
-    
-
-        
       );
     }
 
@@ -684,15 +735,30 @@ setElapsedTimes(timeValue);
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 overflow-x-hidden">
          {/*<WakeLockManager /> */}
+         {showRefreshMessage?(
+          <RefreshMessage/>
+         ):(
 
-      <LogoutButton onLogout={handleLogout} />
-      <div className="max-w-3xl mx-auto">
+           <div className="max-w-3xl mx-auto">
+        <LogoutButton onLogout={handleLogout} />
         <Card className="border-none shadow-lg">
           <CardContent>
-            {questions.length === 0 ? (
+            {currentQuestion.length === 0 ? (
               <WelcomeContent />
             ) : (
               <div className="space-y-6 py-6">
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Timer className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        Question {currentQuestionIndex + 1} of {questions.length}
+                      </span>
+                    </div>
+                    {/* {renderTimer()} */}
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
                 <CardHeader className="p-0 flex flex-col items-start space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-col items-start space-y-2">
                     <CardTitle className="text-2xl text-blue-700">
@@ -703,7 +769,7 @@ setElapsedTimes(timeValue);
                     </CardDescription>
                   </div>
                   <div className="flex items-center ml-auto">
-                 {/* <CountdownCircleTimer
+                {/*  <CountdownCircleTimer
         key={`${currentQuestion?.id}-${remainingTime}`}
         isPlaying={!timeUp && !quizEnded}
         duration={currentQuestion?.timeLimit || 0}
@@ -727,9 +793,9 @@ setElapsedTimes(timeValue);
                           {remainingTime}s
                         </span>
                       )}
-                    </CountdownCircleTimer> */}                       
-                       {renderTimer()}
-   
+                    </CountdownCircleTimer> */}
+                          {renderTimer()}
+
                   </div>
                 </CardHeader>
 
@@ -749,50 +815,47 @@ setElapsedTimes(timeValue);
         className="space-y-3"
         disabled={waitingForNextQuestion || timeUp || isSubmitted}
       >
-        {getOptionsArray(currentQuestion).map((option, i) => {
-          const isCorrectAnswer = currentQuestion.correctAnswer === option.value;
-          const isSelectedOption = selectedOption === option.value;
+       {getOptionsArray(currentQuestion).map((option, i) => {
+  const isCorrectAnswer = currentQuestion.correctAnswer === option.value;
+  const isSelectedOption = selectedOption === option.value;
 
-          return (
-            <div
-              key={i}
-              className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all ${
-                timeUp 
-                  ? isCorrectAnswer
-                    ? "border-green-500 bg-green-50"
-                    : isSelectedOption
-                    ? "border-red-500 bg-red-50"
-                    : "border-gray-200"
-                  : isSelectedOption
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex min-w-0 flex-1 items-center space-x-2">
-                <RadioGroupItem
-                  value={option.value}
-                  id={option.value}
-                />
-                <Label
-                  className="cursor-pointer break-words pr-8"
-                  htmlFor={option.value}
-                >
-                  {option.label}
-                </Label>
-              </div>
-
-              {timeUp && (
-                <div className="absolute right-4 flex-shrink-0">
-                  {isCorrectAnswer ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  ) : isSelectedOption ? (
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  ) : null}
-                </div>
-              )}
-            </div>
-          );
-        })}
+  return (
+    <Label
+      key={i}
+      className={`relative flex items-center space-x-2 rounded-lg border p-4 transition-all cursor-pointer ${
+        timeUp 
+          ? isCorrectAnswer
+            ? "border-green-500 bg-green-50"
+            : isSelectedOption
+            ? "border-red-500 bg-red-50"
+            : "border-gray-200"
+          : isSelectedOption
+          ? "border-blue-500 bg-blue-50"
+          : "border-gray-200 hover:border-gray-300"
+      }`}
+      htmlFor={option.value}
+    >
+      <div className="flex min-w-0 flex-1 items-center space-x-2">
+        <RadioGroupItem
+          value={option.value}
+          id={option.value}
+        />
+        <span className="break-words pr-8">
+          {option.label}
+        </span>
+      </div>
+      {timeUp && (
+        <div className="absolute right-4 flex-shrink-0">
+          {isCorrectAnswer ? (
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+          ) : isSelectedOption ? (
+            <XCircle className="h-5 w-5 text-red-500" />
+          ) : null}
+        </div>
+      )}
+    </Label>
+  );
+})}
       </RadioGroup>
     </div>
 
@@ -804,6 +867,7 @@ setElapsedTimes(timeValue);
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 };
