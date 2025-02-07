@@ -8,6 +8,9 @@ import Dashboard from "../Components/AdminPages/AdminHome";
 import BroadcastQues from "../Components/AdminPages/BroadcastQues";
 import PresentQues from "../Components/AdminPages/PresentQues";
 import LeaderboardComponent from ".././Components/AdminPages/LeaderboardComponent ";
+import QRJoin from "../Components/UserPages/QRjoin";
+import LandingPage from "../Components/AdminPages/LandingPage";
+import SignIn from "../Components/AdminPages/SignIn";
 
 const ProtectedRoute = ({ children }) => {
   const username = sessionStorage.getItem("username");
@@ -21,13 +24,28 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const AdminProtectedRoute = ({ children }) => {
+
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+
+
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  return children;
+};
+
 const Routing = () => {
   return (
     <Routes>
       {/* Admin pages */}
-      <Route path="/" element={<Dashboard />}></Route>
-      <Route path="/quesTitle" element={<QuizTitle />}></Route>
-      <Route path="/present-quiz" element={<PresentQues />}></Route>
+      <Route path="/signin" element={<SignIn />}></Route>
+
+      <Route path="/" element={<AdminProtectedRoute><LandingPage/></AdminProtectedRoute>}></Route>
+      <Route path="/home" element={<AdminProtectedRoute><Dashboard/></AdminProtectedRoute>}></Route>
+      <Route path="/quesTitle" element={<AdminProtectedRoute><QuizTitle /></AdminProtectedRoute>}></Route>
+      <Route path="/present-quiz" element={<AdminProtectedRoute><PresentQues /></AdminProtectedRoute>}></Route>
       <Route path="/questions" element={<BroadcastQues />}></Route>
       <Route path="/post-ques" element={<PostQues />}></Route>
       <Route path="/leaderboard" element={<LeaderboardComponent />}></Route>
@@ -41,6 +59,7 @@ const Routing = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/join/:sessionCode" element={<QRJoin />}></Route>
 
       {/* Redirect to join page for unknown routes */}
       <Route path="*" element={<Navigate to="/join" replace />} />

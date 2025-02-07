@@ -193,7 +193,7 @@ const LeaderboardComponent = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={chartData.length * 50}>
+        <ResponsiveContainer width="100%" height={chartData.length * 65}>
           <BarChart
             layout="vertical"
             data={chartData}
@@ -240,7 +240,7 @@ const LeaderboardComponent = () => {
                       fill="hsl(var(--foreground))"
                       textAnchor="start"
                       dominantBaseline="middle"
-                      className="text-xxl font-bold"
+                      className="text-2xl font-bold"
                     >
                       {name}
                     </text>
@@ -251,7 +251,7 @@ const LeaderboardComponent = () => {
                       y={y + height/2}
                       fill="white"
                       textAnchor="end"
-                      className="text-xxl font-black"
+                      className="text-2xl font-black"
                     />
                   </g>
                 );
