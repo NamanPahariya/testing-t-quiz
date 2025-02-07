@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { TrendingUp, CrownIcon } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
@@ -11,6 +11,103 @@ import {
   YAxis,
   Tooltip,
 } from "recharts";
+
+// Separate SVG-compatible animated counter
+const SVGAnimatedCounter = ({ finalValue, x, y, fill, textAnchor, className }) => {
+  const [count, setCount] = useState(null);
+  const animationRef = useRef(null);
+  const startTimeRef = useRef(null);
+  
+  useEffect(() => {
+    startTimeRef.current = null;
+    
+    const animate = (timestamp) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+        setCount(0);
+      }
+      
+      const runtime = timestamp - startTimeRef.current;
+      const duration = 2000;
+      const progress = Math.min(runtime / duration, 1);
+      
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.round(easeProgress * finalValue);
+      
+      setCount(currentValue);
+      
+      if (runtime < duration) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        setCount(finalValue);
+      }
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [finalValue]);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill={fill}
+      textAnchor={textAnchor}
+      dominantBaseline="middle"
+      className={className}
+    >
+      {count === null ? finalValue : count}
+    </text>
+  );
+};
+
+// Regular animated counter for tooltip
+const AnimatedCounter = ({ finalValue }) => {
+  const [count, setCount] = useState(null);
+  const animationRef = useRef(null);
+  const startTimeRef = useRef(null);
+  
+  useEffect(() => {
+    startTimeRef.current = null;
+    
+    const animate = (timestamp) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+        setCount(0);
+      }
+      
+      const runtime = timestamp - startTimeRef.current;
+      const duration = 1000;
+      const progress = Math.min(runtime / duration, 1);
+      
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.round(easeProgress * finalValue);
+      
+      setCount(currentValue);
+      
+      if (runtime < duration) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        setCount(finalValue);
+      }
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [finalValue]);
+  
+  return <span>{count === null ? finalValue : count}</span>;
+};
 
 const LeaderboardComponent = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -54,10 +151,14 @@ const LeaderboardComponent = () => {
     };
   }, [sessionCode, userName, baseUrl]);
 
+  const formatName = (name) => {
+    return name.split(":")[1]?.trim() || name;
+  };
+
   const chartData = topUsers
     .sort((a, b) => b.score - a.score)
     .map((user, index) => ({
-      name: user.name,
+      name: formatName(user.name),
       score: user.score,
       fill: `hsl(var(--chart-${(index % 5) + 1}))`,
       rank: index + 1,
@@ -73,7 +174,9 @@ const LeaderboardComponent = () => {
             <span className="font-bold text-gray-800">{data.name}</span>
           </div>
           <div className="text-sm text-gray-600">
-            Score: <span className="font-semibold">{data.score}</span>
+            Score: <span className="font-semibold">
+              <AnimatedCounter finalValue={data.score} />
+            </span>
           </div>
         </div>
       );
@@ -95,7 +198,7 @@ const LeaderboardComponent = () => {
             layout="vertical"
             data={chartData}
             margin={{
-              left: 50,  // Increased left margin to accommodate score
+              left: 50,
               top: 10,
               bottom: 10,
               right: 100,
@@ -115,34 +218,41 @@ const LeaderboardComponent = () => {
               layout="vertical"
               radius={[0, 5, 5, 0]}
               label={(props) => {
-                const { x, y, width, value, index } = props;
+                const { x, y, width, height, value, index } = props;
                 const name = chartData[index]?.name || "";
                 const score = chartData[index]?.score || 0;
 
                 return (
                   <g>
                     {/* Score label on the left */}
-                    <text
+                    {/* <SVGAnimatedCounter
+                      finalValue={score}
                       x={x - 8}
-                      y={y}
+                      y={y + height/2}
                       fill="hsl(var(--foreground))"
                       textAnchor="end"
-                      dominantBaseline="middle"
                       className="text-xs font-bold"
-                    >
-                      {score}
-                    </text>
+                    /> */}
                     {/* Name label on the right */}
                     <text
                       x={x + width + 5}
-                      y={y}
+                      y={y + height/2}
                       fill="hsl(var(--foreground))"
                       textAnchor="start"
                       dominantBaseline="middle"
-                      className="text-xs font-bold"
+                      className="text-xxl font-bold"
                     >
                       {name}
                     </text>
+                    {/* Score label inside the bar */}
+                    <SVGAnimatedCounter
+                      finalValue={score}
+                      x={x + width - 8}
+                      y={y + height/2}
+                      fill="white"
+                      textAnchor="end"
+                      className="text-xxl font-black"
+                    />
                   </g>
                 );
               }}

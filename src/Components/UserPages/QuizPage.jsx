@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, memo } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { CountdownCircleTimer } from "react-countdown-circle-timer";
@@ -24,7 +24,8 @@ import {
   CrownIcon,
   Crown,
   Medal,
-  Timer
+  Timer,
+  X,
 } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { useBeforeUnload, useNavigate } from "react-router-dom";
@@ -41,6 +42,9 @@ import {
 } from "../ui/alert-dialog";
 
 import { Progress } from "../ui/progress";
+import { Toast, ToastProvider, ToastViewport, ToastClose, ToastDescription, ToastTitle } from '../ui/toast';
+import { AnimatedCounter } from "./AnimateCounter";
+
 
 // import WakeLockManager from "./WakeLockManager";
 
@@ -48,7 +52,6 @@ const QuizPage = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const [questions, setQuestions] = useState([]);
   console.log('questions',questions);
-
   const [currentQuestion, setCurrentQuestion] = useState([]);
   console.log(currentQuestion,'currentquestions')
   const [selectedOption, setSelectedOption] = useState("");
@@ -60,13 +63,17 @@ const QuizPage = () => {
   const [isCorrectSelection, setIsCorrectSelection] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [questionCount, setQuestionCount] = useState(1);
-  const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [questionLength, setQuestionLength] = useState(() => {
+    // Try to retrieve from sessionStorage first
+    const storedLength = sessionStorage.getItem('initialQuestionLength');
+    return storedLength ? parseInt(storedLength, 10) : 0;
+  });
   const [remainingTime, setRemainingTime] = useState(null);
   const [leaderboard, setLeaderboard] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [ElapsedTimes,setElapsedTimes] = useState(0);
   const [showRefreshMessage, setShowRefreshMessage] = useState(false);
-
+  const [isRefreshed, setIsRefreshed] = useState(false);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -100,6 +107,12 @@ const QuizPage = () => {
         client.subscribe(`/topic/quizQuestions/${sessionCode}`, (message) => {
           const broadcastedQuestions = JSON.parse(message.body);
           console.log("Received questions:", broadcastedQuestions);
+          if (broadcastedQuestions.length > 0 && 
+            !sessionStorage.getItem('initialQuestionLength')) {
+          const length = broadcastedQuestions.length;
+          sessionStorage.setItem('initialQuestionLength', length.toString());
+          setQuestionLength(length);
+        }
           if (broadcastedQuestions.isQuizEnd) {
             setQuizEnded(true);
             setQuizEndMessage(broadcastedQuestions.message);
@@ -108,6 +121,7 @@ const QuizPage = () => {
             setQuestions(broadcastedQuestions);
             setCurrentQuestion(broadcastedQuestions[0]);
             // handleNewQuestion(broadcastedQuestions[0]);
+           
             setWaitingForNextQuestion(false);
             setTimeUp(false);
           }
@@ -116,17 +130,14 @@ const QuizPage = () => {
         client.subscribe(`/topic/currentQuestion/${sessionCode}`, (message) => {
           const newQuestion = JSON.parse(message.body);
           console.log("Received new question:", newQuestion);
-          const newQuestions =newQuestion.question;
-          const questionIndex = newQuestion.questionIndex;
-          console.log("Question:", newQuestions, "Index:", questionIndex);
           if (!quizEnded && newQuestion) {
             setSelectedOption("");
-            setQuestions(prevQuestions => {
-              const newIndex = prevQuestions.findIndex(q => q.id === newQuestion.id);
-              setCurrentQuestionIndex(newIndex !== -1 ? newIndex : prevQuestions.length);
-              setProgress(((newIndex + 1) / prevQuestions.length) * 100);
-              return prevQuestions;
-            });
+            // setQuestions(prevQuestions => {
+            //   const newIndex = prevQuestions.findIndex(q => q.id === newQuestion.id);
+            //   setCurrentQuestionIndex(newIndex !== -1 ? newIndex : prevQuestions.length);
+            //   setProgress(((newIndex + 1) / prevQuestions.length) * 100);
+            //   return prevQuestions;
+            // });
             setCurrentQuestion(newQuestion);
             // handleNewQuestion(newQuestion);
             setWaitingForNextQuestion(false);
@@ -134,6 +145,8 @@ const QuizPage = () => {
             setIsCorrectSelection(null);
             setIsSubmitted(false);
             setQuestionCount((prev) => prev + 1);
+            setIsRefreshed(false); // Add this line
+        setWaitingForNextQuestion(false);
           }
         });
 
@@ -145,6 +158,7 @@ const QuizPage = () => {
           
           if (timerData.type === "TIMER") {
             setRemainingTime(timerData.remainingTime);
+            setCurrentQuestionIndex(timerData.questionIndex);
           } else if (timerData.type === "TIME_UP") {
             setTimeUp(true);
             setWaitingForNextQuestion(true);
@@ -231,6 +245,13 @@ const QuizPage = () => {
       if (stompClientRef.current) stompClientRef.current.deactivate();
     };
   }, []);
+  
+  useEffect(() => {
+    const storedLength = sessionStorage.getItem('initialQuestionLength');
+    if (storedLength) {
+      setProgress(((currentQuestionIndex + 1) / parseInt(storedLength, 10)) * 100);
+    }
+  }, [currentQuestionIndex]);
 
   useEffect(() => {
     const checkConnection = () => {
@@ -255,34 +276,6 @@ const QuizPage = () => {
       clearInterval(connectionCheckInterval);
     };
   }, []);
-
-  // const handleNewQuestion = (question) => {
-  //   if (!question || !question.timestamp) return;
-    
-  //   // Parse the question start time
-  //   const [hours, minutes, seconds] = question.timestamp.split(':').map(Number);
-    
-  //   // Get current time
-  //   const now = new Date();
-  //   const questionStart = new Date(now);
-  //   questionStart.setHours(hours, minutes, seconds, 0);
-    
-  //   // Calculate elapsed time in seconds
-  //   const elapsedSeconds = Math.floor((now - questionStart) / 1000);
-    
-  //   // Calculate remaining time
-  //   const remainingSeconds = Math.max(0, question.timeLimit - elapsedSeconds);
-    
-  //   setQuestionStartTime(question.timestamp);
-  //   setRemainingTime(remainingSeconds);
-    
-  //   // If time is already up when joining
-  //   if (remainingSeconds <= 0) {
-  //     setTimeUp(true);
-  //     setWaitingForNextQuestion(true);
-  //   }
-  // };
-
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -390,6 +383,7 @@ const QuizPage = () => {
       const shouldStay = window.confirm(confirmationMessage);
       if (!shouldStay) {
         setShowRefreshMessage(true);
+        setIsRefreshed(true); // Add this line
         setWaitingForNextQuestion(true);
       } else {
         handleLogout();
@@ -526,12 +520,12 @@ setElapsedTimes(timeValue);
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
       <Card className="w-full max-w-xl shadow-lg">
         <CardHeader className="text-center">
-          <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+          {/* <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" /> */}
           <CardTitle className="text-2xl font-bold text-gray-900">
-            Page Refreshed
+            Page Refreshed 🙁
           </CardTitle>
           <CardDescription className="text-gray-600 mt-4">
-            Please wait for the next question to be displayed. You'll be able to continue when the next question appears.
+            No problem! You'll be able to continue when the next question appears.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -656,10 +650,10 @@ setElapsedTimes(timeValue);
               <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
             </div>
-            <div className="text-sm font-medium text-gray-600 animate-pulse text-center">
+            <div className="text-md font-medium text-gray-600 text-center">
               Stay tuned! Leaderboard coming soon...
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-sm text-gray-500">
               Don't leave just yet - see where you rank among others!
             </div>
           </div>
@@ -692,10 +686,6 @@ setElapsedTimes(timeValue);
     </CountdownCircleTimer>
   );
 
-  
-
-
-
   const renderSubmitSection = () => {
     if (isSubmitted || timeUp) {
       return (
@@ -709,15 +699,28 @@ setElapsedTimes(timeValue);
           </AlertDescription>
         </Alert>
         {isSubmitted && (
-  <Card className="w-full max-w-md mx-auto flex items-center justify-center">
-    <div className="flex items-center space-x-4 p-4">
-      <Clock className="h-5 w-5 text-blue-500" />
-      <span className="text-sm font-medium text-gray-600">Submission Time:</span>
-      <span className="text-lg font-semibold text-gray-700">
-        {ElapsedTimes} seconds
-      </span>
-    </div>
-  </Card>
+ <ToastProvider>
+ <Toast 
+        duration={5000} 
+        className="fixed top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-gray-800 shadow-lg rounded-lg border border-gray-700 p-4 flex items-center space-x-4"
+      >
+        <div className="flex items-center space-x-3">
+          <Clock className="h-6 w-6 text-blue-400" />
+          <div className="flex-1">
+            <ToastTitle className="text-sm font-semibold text-white">
+              Answer Submitted
+            </ToastTitle>
+            <ToastDescription className="text-sm text-gray-300">
+              Your submission time was <AnimatedCounter finalValue={ElapsedTimes} /> seconds
+            </ToastDescription>
+          </div>
+          <ToastClose className="text-gray-400 hover:text-gray-200">
+            <X className="h-4 w-4" />
+          </ToastClose>
+        </div>
+      </Toast>
+ <ToastViewport />
+</ToastProvider>
 )}
       </div>
       );
@@ -734,11 +737,10 @@ setElapsedTimes(timeValue);
       </Button>
     );
   };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 overflow-x-hidden">
          {/*<WakeLockManager /> */}
-         {showRefreshMessage?(
+         {showRefreshMessage && isRefreshed ?(
           <RefreshMessage/>
          ):(
 
@@ -755,7 +757,7 @@ setElapsedTimes(timeValue);
                     <div className="flex items-center gap-2">
                       <Timer className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-600">
-                        Question {currentQuestionIndex + 1} of {questions.length}
+                        Question {currentQuestionIndex + 1} of {questionLength}
                       </span>
                     </div>
                     {/* {renderTimer()} */}
@@ -772,31 +774,6 @@ setElapsedTimes(timeValue);
                     </CardDescription>
                   </div>
                   <div className="flex items-center ml-auto">
-                {/*  <CountdownCircleTimer
-        key={`${currentQuestion?.id}-${remainingTime}`}
-        isPlaying={!timeUp && !quizEnded}
-        duration={currentQuestion?.timeLimit || 0}
-        initialRemainingTime={remainingTime}
-        size={90}
-        strokeWidth={4}
-        colors={["#10B981", "#F59E0B", "#EF4444"]}
-        colorsTime={[
-          Math.floor((currentQuestion?.timeLimit || 0) * 0.7),
-          Math.floor((currentQuestion?.timeLimit || 0) * 0.3),
-          0,
-        ]}
-        onComplete={() => {
-          setTimeUp(true);
-          setWaitingForNextQuestion(true);
-          return { shouldRepeat: false };
-        }}
-      >
-                      {({ remainingTime }) => (
-                        <span className="text-sm font-medium">
-                          {remainingTime}s
-                        </span>
-                      )}
-                    </CountdownCircleTimer> */}
                           {renderTimer()}
 
                   </div>

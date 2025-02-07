@@ -42,7 +42,6 @@ const PostQues = () => {
   const { quizTitle } = location.state || {};
   const [sessionCode, setSessionCode] = useState("");
   const [timeLimit, setTimeLimit] = useState(15);
-
   const [questions, setQuestions] = useState([
     {
       questionText: "",
@@ -132,7 +131,7 @@ const PostQues = () => {
     setShowConfirmModal(false);
     try {
       await axios.post(`${baseUrl}/api/quiz/create`, questions);
-      navigate("/");
+      navigate("/home");
     } catch (error) {
       console.error(error);
     }
@@ -196,6 +195,7 @@ const PostQues = () => {
                             }
                             min="1"
                           />
+
                           {question.correctAnswer && (
                             <Badge variant="success" className="ml-2">
                               <Check className="h-3 w-3 mr-1" />

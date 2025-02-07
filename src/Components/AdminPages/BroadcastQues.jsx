@@ -10,11 +10,23 @@ import {
   CardTitle,
   CardDescription,
 } from "../ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
-import { Timer, ChevronRight, TrendingUp } from "lucide-react";
+import {
+  Timer,
+  TrendingUp,
+  LucideCircleChevronRight,
+  CheckCircle2,
+  Link,
+} from "lucide-react";
 
 const BroadcastQues = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -33,6 +45,14 @@ const BroadcastQues = () => {
   const [quizEnded, setQuizEnded] = useState(false);
   const [quizEndMessage, setQuizEndMessage] = useState("");
   const [progress, setProgress] = useState(0);
+  const [isTimeUp, setIsTimeUp] = useState(false);
+  const [isLinkTooltipOpen, setIsLinkTooltipOpen] = useState(false);
+  const [linkTooltipMessage, setLinkTooltipMessage] = useState("Copy link");
+    
+  
+
+  const clientUrl = import.meta.env.VITE_CLIENT_URL || window.location.origin;
+  const joinUrl = `${clientUrl}/join/${code}`;
 
   const stompClientRef = useRef(null);
 
@@ -40,6 +60,7 @@ const BroadcastQues = () => {
     if (questions.length > 0) {
       setCurrentQuestion(questions[0]);
       setProgress((1 / questions.length) * 100);
+      setIsTimeUp(false)
     }
 
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
@@ -65,6 +86,7 @@ const BroadcastQues = () => {
               setCurrentQuestion(receivedQuestions[0]);
               setCurrentQuestionIndex(0);
               setProgress((1 / receivedQuestions.length) * 100);
+              setIsTimeUp(false)
             }
           }
         });
@@ -72,6 +94,7 @@ const BroadcastQues = () => {
         client.subscribe(`/topic/currentQuestion/${code}`, (message) => {
           const receivedQuestion = JSON.parse(message.body);
           setCurrentQuestion(receivedQuestion);
+          setIsTimeUp(false)
         });
       },
     });
@@ -89,10 +112,10 @@ const BroadcastQues = () => {
   const getOptionsArray = (question) => {
     if (!question) return [];
     return [
-      { id: "1", value: question.option1 },
-      { id: "2", value: question.option2 },
-      { id: "3", value: question.option3 },
-      { id: "4", value: question.option4 },
+      { id: "option1", value: question.option1 },
+      { id: "option2", value: question.option2 },
+      { id: "option3", value: question.option3 },
+      { id: "option4", value: question.option4 },
     ];
   };
 
@@ -102,6 +125,7 @@ const BroadcastQues = () => {
       setCurrentQuestionIndex(nextIndex);
       setCurrentQuestion(questions[nextIndex]);
       setProgress(((nextIndex + 1) / questions.length) * 100);
+      setIsTimeUp(false)
 
       stompClientRef.current.publish({
         destination: `/app/nextQuestion/${code}`,
@@ -117,6 +141,11 @@ const BroadcastQues = () => {
       });
     }
   };
+
+  const handleTimerComplete = ()=>{
+    setIsTimeUp(true);
+    return { shouldRepeat: false };
+  }
 
   if (quizEnded) {
     return (
@@ -161,8 +190,58 @@ const BroadcastQues = () => {
     );
   }
 
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setLinkTooltipMessage("Copied!");
+      setIsLinkTooltipOpen(true);
+
+      setTimeout(() => {
+        setLinkTooltipMessage("Copy link");
+        setIsLinkTooltipOpen(false);
+      }, 1200);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      setLinkTooltipMessage("Failed to copy");
+      setIsLinkTooltipOpen(true);
+
+      setTimeout(() => {
+        setLinkTooltipMessage("Copy link");
+        setIsLinkTooltipOpen(false);
+      }, 1500);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="w-full flex flex-col items-center justify-center space-y-4 mt-8 mb-12">
+      <h2 className="text-2xl text-gray-700 font-medium">Join the Quiz at</h2>
+      <div className="flex items-center justify-center space-x-3">
+        <a 
+          href={`https://${joinUrl}`}
+          className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-indigo-600 hover:to-blue-600 transition-all duration-300"
+        >
+          telusq.telusko.com/join
+        </a>
+        <TooltipProvider>
+          <Tooltip open={isLinkTooltipOpen}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => copyToClipboard(`${joinUrl}`)}
+                className="hover:bg-blue-100"
+              >
+                <Link className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{linkTooltipMessage}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
       <div className="w-full max-w-4xl">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
@@ -184,7 +263,7 @@ const BroadcastQues = () => {
                 Math.floor(currentQuestion.timeLimit * 0.3),
                 0,
               ]}
-              onComplete={() => ({ shouldRepeat: false })}
+              onComplete={handleTimerComplete}
             >
               {({ remainingTime }) => (
                 <span className="text-sm font-medium">{remainingTime}s</span>
@@ -202,19 +281,27 @@ const BroadcastQues = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {getOptionsArray(currentQuestion).map((option) => (
-                <div
-                  key={option.id}
-                  className="flex items-center space-x-2"
-                >
-                  <Label
-                    htmlFor={option.id}
-                    className="flex-1 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    {option.value}
-                  </Label>
-                </div>
-              ))}
+
+            {getOptionsArray(currentQuestion).map((option) => {
+                const isCorrectOption = isTimeUp && currentQuestion.correctAnswer === option.id;
+                return (
+                  <div key={option.id} className="flex items-center space-x-2">
+                    <Label
+                      htmlFor={option.id}
+                      className={`flex-1 p-4 rounded-lg transition-colors cursor-pointer flex justify-between items-center
+                        ${isCorrectOption 
+                          ? 'bg-green-100 hover:bg-green-200' 
+                          : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                    >
+                      <span>{option.value}</span>
+                      {isCorrectOption && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      )}
+                    </Label>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="flex justify-end mt-6">
@@ -230,10 +317,12 @@ const BroadcastQues = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full"
+                  className="h-12 w-12 rounded-full"
                   onClick={presentNextQuestion}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <LucideCircleChevronRight
+                    style={{ width: "40px", height: "40px" }}
+                  />
                 </Button>
               )}
             </div>

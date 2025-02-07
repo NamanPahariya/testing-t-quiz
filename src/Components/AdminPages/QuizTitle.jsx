@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardFooter, CardHeader } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -11,7 +16,7 @@ const QuizTitle = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const submitHandle = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!quizTitle.trim()) {
@@ -50,66 +55,60 @@ const QuizTitle = () => {
           </p>
         </div>
 
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            {/* <CardTitle className="text-xl font-semibold">
-              Quiz Details
-            </CardTitle>
-            <CardDescription>
-              Enter the title for your new quiz below
-            </CardDescription> */}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="quizTitle" className="text-sm font-medium">
-                Quiz Title
-              </Label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="quizTitle"
-                  type="text"
-                  placeholder="e.g., Mathematics Chapter 1 Quiz"
-                  value={quizTitle}
-                  onChange={(e) => setQuizTitle(e.target.value)}
-                  className="pl-10 h-12 border-gray-200"
-                />
+        <form onSubmit={handleSubmit}>
+          <Card className="shadow-lg border-0">
+            <CardHeader />
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="quizTitle" className="text-sm font-medium">
+                  Quiz Title
+                </Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="quizTitle"
+                    type="text"
+                    placeholder="e.g., Mathematics Chapter 1 Quiz"
+                    value={quizTitle}
+                    onChange={(e) => setQuizTitle(e.target.value)}
+                    className="pl-10 h-12 border-gray-200"
+                  />
+                </div>
               </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              onClick={submitHandle}
-              className={`w-full h-12 text-base font-medium transition-all duration-200 ${
-                isLoading || !quizTitle.trim()
-                  ? "bg-gray-100 text-gray-400"
-                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
-              }`}
-              disabled={isLoading || !quizTitle.trim()}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  <span>Creating Quiz...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <span>Continue to Questions</span>
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </div>
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-gray-500 hover:text-gray-700"
-              onClick={() => navigate(-1)}
-            >
-              Back to Dashboard
-            </Button>
-          </CardFooter>
-        </Card>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4">
+              <Button
+                type="submit"
+                className={`w-full h-12 text-base font-medium transition-all duration-200 ${
+                  isLoading || !quizTitle.trim()
+                    ? "bg-gray-100 text-gray-400"
+                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
+                }`}
+                disabled={isLoading || !quizTitle.trim()}
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <span>Creating Quiz...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <span>Continue to Questions</span>
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </div>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => navigate(-1)}
+              >
+                Back to Dashboard
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
       </div>
     </div>
   );
