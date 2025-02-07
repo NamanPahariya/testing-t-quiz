@@ -116,6 +116,9 @@ const QuizPage = () => {
         client.subscribe(`/topic/currentQuestion/${sessionCode}`, (message) => {
           const newQuestion = JSON.parse(message.body);
           console.log("Received new question:", newQuestion);
+          const newQuestions =newQuestion.question;
+          const questionIndex = newQuestion.questionIndex;
+          console.log("Question:", newQuestions, "Index:", questionIndex);
           if (!quizEnded && newQuestion) {
             setSelectedOption("");
             setQuestions(prevQuestions => {
