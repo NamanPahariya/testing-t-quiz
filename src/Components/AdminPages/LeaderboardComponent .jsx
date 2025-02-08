@@ -3,6 +3,8 @@ import { TrendingUp, CrownIcon } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+
 import {
   Bar,
   BarChart,
@@ -12,7 +14,6 @@ import {
   Tooltip,
 } from "recharts";
 
-// Separate SVG-compatible animated counter
 const SVGAnimatedCounter = ({ finalValue, x, y, fill, textAnchor, className }) => {
   const [count, setCount] = useState(null);
   const animationRef = useRef(null);
@@ -66,7 +67,6 @@ const SVGAnimatedCounter = ({ finalValue, x, y, fill, textAnchor, className }) =
   );
 };
 
-// Regular animated counter for tooltip
 const AnimatedCounter = ({ finalValue }) => {
   const [count, setCount] = useState(null);
   const animationRef = useRef(null);
@@ -109,6 +109,23 @@ const AnimatedCounter = ({ finalValue }) => {
   return <span>{count === null ? finalValue : count}</span>;
 };
 
+const UserAvatar = ({ name, avatarUrl, initials, className = "" }) => {
+  const [imgError, setImgError] = useState(false);
+  
+  return (
+    <Avatar className={`${className}`}>
+      {!imgError ? (
+        <AvatarImage 
+          src={avatarUrl} 
+          alt={name}
+          onError={() => setImgError(true)}
+        />
+      ) : null}
+      <AvatarFallback>{initials}</AvatarFallback>
+    </Avatar>
+  );
+};
+
 const LeaderboardComponent = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const [topUsers, setTopUsers] = useState([]);
@@ -116,6 +133,67 @@ const LeaderboardComponent = () => {
 
   const sessionCode = localStorage.getItem("code");
   const userName = sessionStorage.getItem("username");
+
+  // Expanded list of avatar styles and their options
+  const avatarStyles = [
+    'adventurer',
+    'adventurer-neutral',
+    'avataaars',
+    'big-ears',
+    'big-ears-neutral',
+    'big-smile',
+    'bottts',
+    'bottts-neutral',
+    'croodles',
+    'croodles-neutral',
+    'fun-emoji',
+    'icons',
+    'lorelei',
+    'lorelei-neutral',
+    'micah',
+    'miniavs',
+    'notionists',
+    'notionists-neutral',
+    'open-peeps',
+    'personas',
+    'pixel-art',
+    'pixel-art-neutral',
+    'shapes',
+    'thumbs'
+  ];
+
+  const backgroundColors = [
+    'b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'
+  ];
+
+  // Function to generate a consistent random number for each user
+  const getConsistentRandomNumber = (seed) => {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash);
+  };
+
+  // Function to get a random avatar configuration for a user
+  const getRandomAvatarConfig = (seed) => {
+    const randomNum = getConsistentRandomNumber(seed);
+    const styleIndex = randomNum % avatarStyles.length;
+    const style = avatarStyles[styleIndex];
+    const bgIndex = (randomNum >> 4) % backgroundColors.length;
+    const backgroundColor = backgroundColors[bgIndex];
+    
+    return { style, backgroundColor };
+  };
+
+  // Function to generate avatar URL
+  const getAvatarUrl = (name) => {
+    const { style, backgroundColor } = getRandomAvatarConfig(name);
+    const randomSeed = getConsistentRandomNumber(name);
+    return `https://api.dicebear.com/7.x/${style}/svg?seed=${randomSeed}&size=80&backgroundColor=${backgroundColor}`;
+  };
 
   useEffect(() => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
@@ -155,14 +233,28 @@ const LeaderboardComponent = () => {
     return name.split(":")[1]?.trim() || name;
   };
 
+  const getInitials = (name) => {
+    return name
+      .split(" ")
+      .map(part => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   const chartData = topUsers
     .sort((a, b) => b.score - a.score)
-    .map((user, index) => ({
-      name: formatName(user.name),
-      score: user.score,
-      fill: `hsl(var(--chart-${(index % 5) + 1}))`,
-      rank: index + 1,
-    }));
+    .map((user, index) => {
+      const formattedName = formatName(user.name);
+      return {
+        name: formattedName,
+        score: user.score,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`,
+        rank: index + 1,
+        initials: getInitials(formattedName),
+        avatarUrl: getAvatarUrl(formattedName)
+      };
+    });
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -170,7 +262,13 @@ const LeaderboardComponent = () => {
       return (
         <div className="bg-white shadow-lg rounded-lg p-4 border">
           <div className="flex items-center gap-2">
-            {data.rank === 1 && <CrownIcon className="text-yellow-500" />}
+            <UserAvatar 
+              name={data.name}
+              avatarUrl={data.avatarUrl}
+              initials={data.initials}
+              className="h-10 w-10"
+            />
+            {data.rank === 1 && <CrownIcon className="text-yellow-500 h-6 w-6" />}
             <span className="font-bold text-gray-800">{data.name}</span>
           </div>
           <div className="text-sm text-gray-600">
@@ -193,7 +291,7 @@ const LeaderboardComponent = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={chartData.length * 65}>
+        <ResponsiveContainer width="100%" height={chartData.length * 75}>
           <BarChart
             layout="vertical"
             data={chartData}
@@ -201,7 +299,7 @@ const LeaderboardComponent = () => {
               left: 50,
               top: 10,
               bottom: 10,
-              right: 100,
+              right: 120,
             }}
           >
             <XAxis type="number" hide />
@@ -219,32 +317,28 @@ const LeaderboardComponent = () => {
               radius={[0, 5, 5, 0]}
               label={(props) => {
                 const { x, y, width, height, value, index } = props;
-                const name = chartData[index]?.name || "";
-                const score = chartData[index]?.score || 0;
+                const data = chartData[index] || {};
+                const name = data.name || "";
+                const score = data.score || 0;
 
                 return (
                   <g>
-                    {/* Score label on the left */}
-                    {/* <SVGAnimatedCounter
-                      finalValue={score}
-                      x={x - 8}
-                      y={y + height/2}
-                      fill="hsl(var(--foreground))"
-                      textAnchor="end"
-                      className="text-xs font-bold"
-                    /> */}
-                    {/* Name label on the right */}
-                    <text
+                    <foreignObject
                       x={x + width + 5}
-                      y={y + height/2}
-                      fill="hsl(var(--foreground))"
-                      textAnchor="start"
-                      dominantBaseline="middle"
-                      className="text-2xl font-bold"
+                      y={y + height/2 - 16}
+                      width="200"
+                      height="32"
                     >
-                      {name}
-                    </text>
-                    {/* Score label inside the bar */}
+                      <div className="flex items-center gap-2">
+                        <UserAvatar 
+                          name={name}
+                          avatarUrl={data.avatarUrl}
+                          initials={data.initials}
+                          className="h-8 w-8"
+                        />
+                        <span className="text-2xl font-bold">{name}</span>
+                      </div>
+                    </foreignObject>
                     <SVGAnimatedCounter
                       finalValue={score}
                       x={x + width - 8}
