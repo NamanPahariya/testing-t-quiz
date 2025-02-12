@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import { TrendingUp } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   Bar,
   BarChart,
