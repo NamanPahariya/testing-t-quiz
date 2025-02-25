@@ -98,9 +98,9 @@ const QuizPage = () => {
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
     const client = new Client({
       webSocketFactory: () => socket,
-      heartbeatIncoming: 25000, // 25 seconds, matching backend
-      heartbeatOutgoing: 25000, // 25 seconds, matching backend
-      reconnectDelay: 5000,     // 5 seconds delay before reconnect attempt
+      heartbeatIncoming: 10000, // 25 seconds, matching backend
+      heartbeatOutgoing: 10000, // 25 seconds, matching backend
+      reconnectDelay: 1000,     // 5 seconds delay before reconnect attempt
       onConnect: () => {
         console.log("Connected to WebSocket");
         // localStorage.setItem('connected',true);
@@ -156,10 +156,11 @@ const QuizPage = () => {
           const timerData = JSON.parse(message.body);
           console.log("Timer update:", timerData);
           
-          if (timerData.type === "TIMER") {
-            setRemainingTime(timerData.remainingTime);
-            setCurrentQuestionIndex(timerData.questionIndex);
-          } else if (timerData.type === "TIME_UP") {
+          setRemainingTime(timerData.remainingTime);
+          setCurrentQuestionIndex(timerData.questionIndex);
+          
+          // Check if timer has reached 0
+          if (timerData.remainingTime === 0) {
             setTimeUp(true);
             setWaitingForNextQuestion(true);
             if (currentQuestion && selectedOption) {
@@ -739,62 +740,47 @@ setElapsedTimes(timeValue);
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 overflow-x-hidden">
-         {/*<WakeLockManager /> */}
-         {showRefreshMessage && isRefreshed ?(
-          <RefreshMessage/>
-         ):(
-
-           <div className="max-w-3xl mx-auto">
+    {showRefreshMessage && isRefreshed ? (
+      <RefreshMessage />
+    ) : (
+      <div className="max-w-3xl mx-auto">
         <LogoutButton onLogout={handleLogout} />
-        <Card className="border-none shadow-lg">
+        <Card className="border-none shadow-lg" data-testid="quiz-card">
           <CardContent>
             {currentQuestion.length === 0 ? (
               <WelcomeContent />
             ) : (
-              <div className="space-y-6 py-6">
+              <div className="space-y-6 py-6" data-testid="question-container">
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Timer className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600" data-testid="question-progress">
                         Question {currentQuestionIndex + 1} of {questionLength}
                       </span>
-                    </div>
-                    {/* {renderTimer()} */}
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                </div>
-                <CardHeader className="p-0 flex flex-col items-start space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
-                  <div className="flex flex-col items-start space-y-2">
-                    <CardTitle className="text-2xl text-blue-700">
-                      Current Question
-                    </CardTitle>
-                    <CardDescription>
-                      Select the best answer for the question below
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center ml-auto">
-                          {renderTimer()}
-
-                  </div>
-                </CardHeader>
+                      </div>
+              <div>{renderTimer()}</div> 
+            </div>
+            <Progress value={progress} className="h-2" data-testid="progress-bar" />
+          </div>
+               
 
                 <div
-      key={currentQuestion?.id}
-      className={`relative ${
-        questionCount > 1 ? "animate-slide-in-right" : ""
-      } overflow-hidden`}
-    >
-      <div className="text-lg font-medium mb-4">
-        {currentQuestion?.questionText}
-      </div>
+                  key={currentQuestion?.id}
+                  className={`relative ${questionCount > 1 ? "animate-slide-in-right" : ""} overflow-hidden`}
+                  data-testid="current-question"
+                >
+                  <div className="text-lg font-medium mb-4" data-testid="question-text">
+                    {currentQuestion?.questionText}
+                  </div>
 
-      <RadioGroup
-        value={selectedOption}
-        onValueChange={handleOptionChange}
-        className="space-y-3"
-        disabled={waitingForNextQuestion || timeUp || isSubmitted}
-      >
+                  <RadioGroup
+                    value={selectedOption}
+                    onValueChange={handleOptionChange}
+                    className="space-y-3"
+                    disabled={waitingForNextQuestion || timeUp || isSubmitted}
+                    data-testid="options-container"
+                  >
        {getOptionsArray(currentQuestion).map((option, i) => {
   const isCorrectAnswer = currentQuestion.correctAnswer === option.value;
   const isSelectedOption = selectedOption === option.value;
@@ -814,16 +800,18 @@ setElapsedTimes(timeValue);
           : "border-gray-200 hover:border-gray-300"
       }`}
       htmlFor={option.value}
+      data-testid={`option-${i + 1}`}
     >
       <div className="flex min-w-0 flex-1 items-center space-x-2">
-        <RadioGroupItem
-          value={option.value}
-          id={option.value}
-        />
-        <span className="break-words pr-8">
-          {option.label}
-        </span>
-      </div>
+                            <RadioGroupItem
+                              value={option.value}
+                              id={option.value}
+                              data-testid={`radio-${i + 1}`}
+                            />
+                            <span className="break-words pr-8" data-testid={`option-text-${i + 1}`}>
+                              {option.label}
+                            </span>
+                          </div>
       {timeUp && (
         <div className="absolute right-4 flex-shrink-0">
           {isCorrectAnswer ? (
@@ -839,7 +827,7 @@ setElapsedTimes(timeValue);
       </RadioGroup>
     </div>
 
-                <div className="flex justify-between items-center pt-4">
+                <div className="flex justify-between items-center pt-4" data-testid="submit-button">
                   {renderSubmitSection()}
                 </div>
               </div>
