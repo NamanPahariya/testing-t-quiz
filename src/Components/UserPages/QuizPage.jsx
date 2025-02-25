@@ -44,6 +44,7 @@ import {
 import { Progress } from "../ui/progress";
 import { Toast, ToastProvider, ToastViewport, ToastClose, ToastDescription, ToastTitle } from '../ui/toast';
 import { AnimatedCounter } from "./AnimateCounter";
+import ConnectionAlertBadge from "../Resuable/connectio";
 
 
 // import WakeLockManager from "./WakeLockManager";
@@ -86,33 +87,118 @@ const QuizPage = () => {
       name: sessionStorage.getItem("username")
     });
   
-  const stompClientRef = useRef(null);
-  const heartbeatTimeoutRef = useRef(null);
+    const CONNECTION_STATES = {
+      DISCONNECTED: 'disconnected',
+      CONNECTING: 'connecting',
+      CONNECTED: 'connected',
+      RECONNECTING: 'reconnecting'
+    };
+    
+    // References that need to be tracked
+    const stompClientRef = useRef(null);
+    const heartbeatTimeoutRef = useRef(null);
+    const reconnectTimeoutRef = useRef(null);
+    const connectionCheckIntervalRef = useRef(null);
+    const reconnectAttemptsRef = useRef(0);
+    const maxReconnectAttempts = 10;
+    const [connectionState, setConnectionState] = useState(CONNECTION_STATES.DISCONNECTED);
 
   const sessionCode = sessionStorage.getItem("sessionCode");
   const name = sessionStorage.getItem("username");
   const userId = sessionStorage.getItem("userId");
   const navigate = useNavigate();
 
-    const connectWebSocket = () =>{
+
+// Safely deactivate the client and return a Promise
+const safeDeactivateClient = async () => {
+  return new Promise((resolve) => {
+    if (stompClientRef.current && stompClientRef.current.connected) {
+      console.log("Safely deactivating STOMP client...");
+      // First clear any pending timeouts
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+        heartbeatTimeoutRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      
+      // Set a backup timeout to resolve in case deactivation hangs
+      const backupTimeout = setTimeout(() => {
+        console.warn("STOMP client deactivation timed out");
+        resolve();
+      }, 2000);
+      
+      // Try deactivating properly
+      try {
+        stompClientRef.current.deactivate();
+        stompClientRef.current.onWebSocketClose = () => {
+          clearTimeout(backupTimeout);
+          resolve();
+        };
+      } catch (error) {
+        console.error("Error during deactivation:", error);
+        clearTimeout(backupTimeout);
+        resolve();
+      }
+    } else {
+      // If already disconnected, resolve immediately
+      resolve();
+    }
+  });
+};
+
+
+const connectWebSocket = async (isReconnect = false) => {
+  // Don't try to reconnect if already connecting or connected
+  if ((connectionState === CONNECTION_STATES.CONNECTING || 
+       connectionState === CONNECTION_STATES.CONNECTED) && !isReconnect) {
+    console.log("Already connecting or connected, skipping connection attempt");
+    return;
+  }
+  
+  setConnectionState(isReconnect ? CONNECTION_STATES.RECONNECTING : CONNECTION_STATES.CONNECTING);
+  
+  // If reconnecting, make sure previous connection is properly closed
+  if (isReconnect && stompClientRef.current) {
+    await safeDeactivateClient();
+  }
+
+  try {
+    // Create socket with a timeout to handle hanging connections
     const socket = new SockJS(`${baseUrl}/quiz-websocket`);
+    
+    // Track socket errors separately
+    socket.onerror = (error) => {
+      console.error("SockJS socket error:", error);
+    };
+    
     const client = new Client({
       webSocketFactory: () => socket,
-      heartbeatIncoming: 10000, // 25 seconds, matching backend
-      heartbeatOutgoing: 10000, // 25 seconds, matching backend
-      reconnectDelay: 1000,     // 5 seconds delay before reconnect attempt
+      heartbeatIncoming: 25000, // 25 seconds, matching backend
+      heartbeatOutgoing: 25000, // 25 seconds, matching backend
+      // Apply exponential backoff for reconnect - this helps with network transitions
+      reconnectDelay: (attempt) => Math.min(3000 * Math.pow(1.5, attempt), 30000),
+      
       onConnect: () => {
         console.log("Connected to WebSocket");
-        // localStorage.setItem('connected',true);
+        setConnectionState(CONNECTION_STATES.CONNECTED);
+        reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
+        
+        // Setup heartbeat monitoring
+        setupHeartbeatMonitoring();
+        
+        // Subscribe to quiz questions
         client.subscribe(`/topic/quizQuestions/${sessionCode}`, (message) => {
           const broadcastedQuestions = JSON.parse(message.body);
           console.log("Received questions:", broadcastedQuestions);
           if (broadcastedQuestions.length > 0 && 
             !sessionStorage.getItem('initialQuestionLength')) {
-          const length = broadcastedQuestions.length;
-          sessionStorage.setItem('initialQuestionLength', length.toString());
-          setQuestionLength(length);
-        }
+            const length = broadcastedQuestions.length;
+            sessionStorage.setItem('initialQuestionLength', length.toString());
+            setQuestionLength(length);
+          }
           if (broadcastedQuestions.isQuizEnd) {
             setQuizEnded(true);
             setQuizEndMessage(broadcastedQuestions.message);
@@ -120,39 +206,29 @@ const QuizPage = () => {
           if (!quizEnded) {
             setQuestions(broadcastedQuestions);
             setCurrentQuestion(broadcastedQuestions[0]);
-            // handleNewQuestion(broadcastedQuestions[0]);
-           
             setWaitingForNextQuestion(false);
             setTimeUp(false);
           }
         });
 
+        // Subscribe to current question
         client.subscribe(`/topic/currentQuestion/${sessionCode}`, (message) => {
           const newQuestion = JSON.parse(message.body);
           console.log("Received new question:", newQuestion);
           if (!quizEnded && newQuestion) {
             setSelectedOption("");
-            // setQuestions(prevQuestions => {
-            //   const newIndex = prevQuestions.findIndex(q => q.id === newQuestion.id);
-            //   setCurrentQuestionIndex(newIndex !== -1 ? newIndex : prevQuestions.length);
-            //   setProgress(((newIndex + 1) / prevQuestions.length) * 100);
-            //   return prevQuestions;
-            // });
             setCurrentQuestion(newQuestion);
-            // handleNewQuestion(newQuestion);
             setWaitingForNextQuestion(false);
             setTimeUp(false);
             setIsCorrectSelection(null);
             setIsSubmitted(false);
             setQuestionCount((prev) => prev + 1);
-            setIsRefreshed(false); // Add this line
-        setWaitingForNextQuestion(false);
+            setIsRefreshed(false);
           }
         });
 
-
-         // Subscribe to timer updates
-         client.subscribe(`/topic/timer/${sessionCode}`, (message) => {
+        // Subscribe to timer updates
+        client.subscribe(`/topic/timer/${sessionCode}`, (message) => {
           const timerData = JSON.parse(message.body);
           console.log("Timer update:", timerData);
           
@@ -169,83 +245,178 @@ const QuizPage = () => {
           }
         });
 
+        // Subscribe to leaderboard
         client.subscribe(`/topic/leaderboard/${sessionCode}`, (message) => {
           const leaderboardData = JSON.parse(message.body);
           if(leaderboardData){
             setTopUsers(leaderboardData);
             console.log(leaderboardData, "leaderboard");
             console.log("Setting leaderboard state to true");
-          setLeaderboard(true);
-          setShowLeaderboard(true); 
+            setLeaderboard(true);
+            setShowLeaderboard(true); 
 
-          const userLeaderboardSubscription = client.subscribe(
-            `/topic/userLeaderboard/${sessionCode}`, 
-            (userMessage) => {
-              const userDetails = JSON.parse(userMessage.body);
-              console.log(userDetails, "userDetails");
-              if (!userDetails.error && userDetails.name === name) {
-                console.log("updating for the current name", name);
-                setUserStats({
-                  score: userDetails.score,
-                  rank: userDetails.rank,
-                  name: userDetails.name
-                });
+            const userLeaderboardSubscription = client.subscribe(
+              `/topic/userLeaderboard/${sessionCode}`, 
+              (userMessage) => {
+                const userDetails = JSON.parse(userMessage.body);
+                console.log(userDetails, "userDetails");
+                if (!userDetails.error && userDetails.name === name) {
+                  console.log("updating for the current name", name);
+                  setUserStats({
+                    score: userDetails.score,
+                    rank: userDetails.rank,
+                    name: userDetails.name
+                  });
+                }
               }
-            }
-          );
+            );
 
-          client.publish({
-            destination: `/app/userLeaderboard/${sessionCode}`,
-            body: name
-          });
-
-          
-
-          // Clean up subscription when leaderboard is hidden
-          return () => {
-            userLeaderboardSubscription.unsubscribe();
-          };
-
-
+            client.publish({
+              destination: `/app/userLeaderboard/${sessionCode}`,
+              body: name
+            });
           }
-          
         });
-        
       },
+      
       onStompError: (frame) => {
         console.error('STOMP error:', frame);
+        handleConnectionFailure();
       },
+      
       onWebSocketClose: () => {
         console.log('WebSocket connection closed');
-        // Clear any existing heartbeat timeout
+        // Clear heartbeat monitoring
         if (heartbeatTimeoutRef.current) {
           clearTimeout(heartbeatTimeoutRef.current);
+          heartbeatTimeoutRef.current = null;
+        }
+        
+        // Only attempt reconnect if not intentionally disconnecting
+        if (connectionState !== CONNECTION_STATES.DISCONNECTED) {
+          setConnectionState(CONNECTION_STATES.DISCONNECTED);
+          attemptReconnect();
         }
       },
+      
       onWebSocketError: (event) => {
         console.error('WebSocket error:', event);
+        handleConnectionFailure();
       },
+      
       debug: (str) => {
-        console.debug(str);
+        // Limit debug logging to reduce console noise
+        if (str.includes('error') || str.includes('fail') || str.includes('connect')) {
+          console.debug(str);
+        }
       }
     });
 
-    
-
     stompClientRef.current = client;
     stompClientRef.current.activate();
+  } catch (error) {
+    console.error("Error creating STOMP client:", error);
+    handleConnectionFailure();
   }
+};
 
-  useEffect(() => {
-    connectWebSocket();
-    return () => {
-      console.log("Deactivating stompClient");
-      if (heartbeatTimeoutRef.current) {
-        clearTimeout(heartbeatTimeoutRef.current);
+// Set up heartbeat monitoring to detect stale connections
+const setupHeartbeatMonitoring = () => {
+  if (heartbeatTimeoutRef.current) {
+    clearTimeout(heartbeatTimeoutRef.current);
+  }
+  
+  heartbeatTimeoutRef.current = setTimeout(() => {
+    console.log("Checking connection health...");
+    if (stompClientRef.current && !stompClientRef.current.connected) {
+      console.warn("Connection appears stale despite no close event");
+      attemptReconnect();
+    } else {
+      // Re-schedule the check if connection is healthy
+console.log("connection is good")
+      setupHeartbeatMonitoring();
+    }
+  }, 15000); // Check every 30 seconds
+};
+
+// Handle connection failures with exponential backoff
+const handleConnectionFailure = () => {
+  setConnectionState(CONNECTION_STATES.DISCONNECTED);
+  attemptReconnect();
+};
+
+// Attempt to reconnect with exponential backoff
+const attemptReconnect = () => {
+  // Clear any existing reconnect attempts
+  if (reconnectTimeoutRef.current) {
+    clearTimeout(reconnectTimeoutRef.current);
+  }
+  
+  // Stop after maximum attempts
+  if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+    console.error(`Failed to reconnect after ${maxReconnectAttempts} attempts`);
+    // Could show an error UI to the user here
+    return;
+  }
+  
+  const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 1000);
+  console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+  
+  reconnectTimeoutRef.current = setTimeout(() => {
+    reconnectAttemptsRef.current++;
+    connectWebSocket(true);
+  }, delay);
+};
+
+// Monitor network changes (works in modern browsers)
+const setupNetworkMonitoring = () => {
+  // Check if the Network Information API is available
+  if ('connection' in navigator && 'addEventListener' in navigator.connection) {
+    navigator.connection.addEventListener('change', () => {
+      console.log("Network conditions changed, checking connection");
+      if (stompClientRef.current && !stompClientRef.current.connected) {
+        console.log("Network changed and disconnected, attempting to reconnect");
+        attemptReconnect();
       }
-      if (stompClientRef.current) stompClientRef.current.deactivate();
-    };
-  }, []);
+      else{
+        console.log('you are already connected')
+      }
+    });
+  }
+  
+  // Add event listener for online/offline events (works in all browsers)
+  window.addEventListener('online', () => {
+    console.log("Browser reports online status");
+    if (stompClientRef.current && !stompClientRef.current.connected) {
+      console.log("Device came online, attempting to reconnect");
+      attemptReconnect();
+    }
+  });
+  
+  window.addEventListener('offline', () => {
+    console.log("Browser reports offline status");
+    // No need to do anything here, the socket will close on its own
+  });
+};
+
+useEffect(() => {
+  connectWebSocket();
+  setupNetworkMonitoring();
+  
+  // Clean up function
+  return async () => {
+    console.log("Component unmounting, cleaning up connections");
+    setConnectionState(CONNECTION_STATES.DISCONNECTED);
+    
+    // Clear all timeouts and intervals
+    if (heartbeatTimeoutRef.current) clearTimeout(heartbeatTimeoutRef.current);
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    if (connectionCheckIntervalRef.current) clearInterval(connectionCheckIntervalRef.current);
+    
+    // Safely deactivate client
+    await safeDeactivateClient();
+  };
+}, []);
   
   useEffect(() => {
     const storedLength = sessionStorage.getItem('initialQuestionLength');
@@ -254,54 +425,84 @@ const QuizPage = () => {
     }
   }, [currentQuestionIndex]);
 
-  useEffect(() => {
-    const checkConnection = () => {
+  // useEffect(() => {
+  //   const checkConnection = () => {
+  //     if (stompClientRef.current && !stompClientRef.current.connected) {
+  //       console.log("Connection lost, attempting to reconnect...");
+  //       try {
+  //         stompClientRef.current.deactivate();
+  //         connectWebSocket();
+  //         if(stompClientRef.current.connected){
+  //         console.log("Reconnection successful");
+  //         }
+  //       } catch (error) {
+  //         console.error("Reconnection failed:", error);
+  //       }
+  //     }
+  //   };
+
+  //   // Check connection every 30 seconds (twice the heartbeat interval)
+  //   const connectionCheckInterval = setInterval(checkConnection, 50000);
+
+  //   return () => {
+  //     clearInterval(connectionCheckInterval);
+  //   };
+  // }, []);
+
+ // Handle visibility changes (browser tab switching, mobile app background)
+useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      console.log("Page became visible");
+      // Check connection and reconnect if needed
       if (stompClientRef.current && !stompClientRef.current.connected) {
-        console.log("Connection lost, attempting to reconnect...");
-        try {
-          stompClientRef.current.deactivate();
-          connectWebSocket();
-          if(stompClientRef.current.connected){
-          console.log("Reconnection successful");
-          }
-        } catch (error) {
-          console.error("Reconnection failed:", error);
-        }
+        console.log("Reconnecting after visibility change");
+        // Reset reconnect attempts on manual visibility change
+        reconnectAttemptsRef.current = 0;
+        attemptReconnect();
       }
-    };
+    } else {
+      console.log("Page hidden");
+      // On some platforms, we might want to pause certain activities
+      // but keep connection open if possible
+    }
+  };
 
-    // Check connection every 30 seconds (twice the heartbeat interval)
-    const connectionCheckInterval = setInterval(checkConnection, 50000);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  return () => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+}, []);
 
-    return () => {
-      clearInterval(connectionCheckInterval);
-    };
-  }, []);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        // Check connection status when page becomes visible
-        if (stompClientRef.current && !stompClientRef.current.connected) {
-          console.log("Reconnecting after visibility change...");
-          stompClientRef.current.deactivate();
-          connectWebSocket();
-          if(stompClientRef.current.connected){
-            console.log('reconnected successfully after visibility change');
-          }
-        }
-        // Existing question refresh logic
-        // if (currentQuestion) {
-        //   handleNewQuestion(currentQuestion);
-        // }
-      }
-    };
+// Optional: Add an interval check as a safety net for platforms with unreliable event handling
+useEffect(() => {
+  connectionCheckIntervalRef.current = setInterval(() => {
+    if (connectionState !== CONNECTION_STATES.DISCONNECTED && 
+        stompClientRef.current && !stompClientRef.current.connected) {
+      console.log("Periodic check found disconnected client");
+      attemptReconnect();
+    }
+  }, 60000); // Check every minute as a fallback
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [currentQuestion]);
+  return () => {
+    if (connectionCheckIntervalRef.current) {
+      clearInterval(connectionCheckIntervalRef.current);
+    }
+  };
+}, [connectionState]);
+
+
+const ConnectionStatusWithAlert = () => {
+  return (
+    <ConnectionAlertBadge 
+      connectionState={connectionState}
+      reconnectAttempts={reconnectAttemptsRef.current}
+      maxReconnectAttempts={maxReconnectAttempts}
+      onManualReconnect={handleManualReconnect}
+    />
+  );
+};
   
   const getOptionsArray = (question) => { 
     if (!question) return [];
@@ -337,6 +538,7 @@ const QuizPage = () => {
       sessionStorage.removeItem("sessionCode");
       sessionStorage.removeItem("userId");
       sessionStorage.removeItem("quizPageLeaving");
+      sessionStorage.removeItem("initialQuestionLength");
 
       navigate("/join");
     }
@@ -687,6 +889,15 @@ setElapsedTimes(timeValue);
     </CountdownCircleTimer>
   );
 
+
+  const handleManualReconnect = () => {
+    console.log("Manual reconnection requested by user");
+    // Reset reconnect attempts counter
+    reconnectAttemptsRef.current = 0;
+    // Try to reconnect
+    attemptReconnect();
+  };
+
   const renderSubmitSection = () => {
     if (isSubmitted || timeUp) {
       return (
@@ -740,6 +951,9 @@ setElapsedTimes(timeValue);
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 overflow-x-hidden">
+    {/* <ConnectionStatus /> */}
+    <ConnectionStatusWithAlert/>
+
     {showRefreshMessage && isRefreshed ? (
       <RefreshMessage />
     ) : (
