@@ -167,7 +167,17 @@ const connectWebSocket = async (isReconnect = false) => {
 
   try {
     // Create socket with a timeout to handle hanging connections
-    const socket = new SockJS(`${baseUrl}/quiz-websocket`);
+    const socket = new SockJS(`${baseUrl}/quiz-websocket`,null,{
+      transports: [
+        'websocket',      // Primary
+        'xhr-streaming',  // Fallback
+        'xhr-polling',    // Secondary fallback
+        'jsonp-polling'   // Last resort
+      ]
+    });
+
+
+   
     
     // Track socket errors separately
     socket.onerror = (error) => {
@@ -176,11 +186,15 @@ const connectWebSocket = async (isReconnect = false) => {
     
     const client = new Client({
       webSocketFactory: () => socket,
-      heartbeatIncoming: 25000, // 25 seconds, matching backend
-      heartbeatOutgoing: 25000, // 25 seconds, matching backend
+      heartbeatIncoming: 10000, // 25 seconds, matching backend
+      heartbeatOutgoing: 10000, // 25 seconds, matching backend
       // Apply exponential backoff for reconnect - this helps with network transitions
-      reconnectDelay: (attempt) => Math.min(3000 * Math.pow(1.5, attempt), 30000),
+      reconnectDelay: (attempt) => {
+        // Start with 1-2 seconds, grow exponentially, cap at 30-60 seconds
+        return Math.min(1000 * Math.pow(2, attempt), 30000);
+      },
       
+            
       onConnect: () => {
         console.log("Connected to WebSocket");
         setConnectionState(CONNECTION_STATES.CONNECTED);
