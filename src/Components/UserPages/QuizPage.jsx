@@ -186,12 +186,12 @@ const connectWebSocket = async (isReconnect = false) => {
     
     const client = new Client({
       webSocketFactory: () => socket,
-      heartbeatIncoming: 10000, // 25 seconds, matching backend
-      heartbeatOutgoing: 10000, // 25 seconds, matching backend
+      heartbeatIncoming: 500, // 25 seconds, matching backend
+      heartbeatOutgoing: 500, // 25 seconds, matching backend
       // Apply exponential backoff for reconnect - this helps with network transitions
       reconnectDelay: (attempt) => {
         // Start with 1-2 seconds, grow exponentially, cap at 30-60 seconds
-        return Math.min(1000 * Math.pow(2, attempt), 30000);
+        return Math.min(1000 * Math.pow(500, attempt), 30000);
       },
       
             
