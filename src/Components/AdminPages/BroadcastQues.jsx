@@ -151,7 +151,7 @@ const BroadcastQues = () => {
     const receivedQuestion = JSON.parse(message.body);
     setQuizState(prev => ({
       ...prev,
-      currentQuestion: receivedQuestion,
+      currentQuestion: receivedQuestion.question,
       isTimeUp: false,
     }));
   }, []);
@@ -221,7 +221,7 @@ const BroadcastQues = () => {
       <div className="w-full max-w-4xl">
         <QuizProgress
           currentIndex={quizState.currentQuestionIndex}
-          totalQuestions={quizState.questions.length}
+          totalQuestions={quizState.questions.length || quizState.currentQuestion.length}
           progress={quizState.progress}
           timeLimit={quizState.currentQuestion.timeLimit}
           onTimerComplete={handleTimerComplete}
