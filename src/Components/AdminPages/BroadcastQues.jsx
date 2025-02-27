@@ -49,9 +49,9 @@ const useWebSocket = (baseUrl, code, onMessageReceived, onCurrentQuestionReceive
         client.subscribe(`/topic/currentQuestion/${code}`, onCurrentQuestionReceived);
       },
       // Add reconnection strategy
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      reconnectDelay: 500,
+      heartbeatIncoming: 500,
+      heartbeatOutgoing: 500,
     });
 
     stompClientRef.current = client;

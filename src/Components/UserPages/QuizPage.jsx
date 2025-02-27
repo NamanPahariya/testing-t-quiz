@@ -167,7 +167,7 @@ const QuizPage = () => {
         // Apply exponential backoff for reconnect - this helps with network transitions
         reconnectDelay: (attempt) => {
           // Start with 1-2 seconds, grow exponentially, cap at 30-60 seconds
-          return Math.min(1000 * Math.pow(2, attempt), 30000);
+          return Math.min(1000 * Math.pow(0.5, attempt), 30000);
         },
 
         onConnect: () => {
