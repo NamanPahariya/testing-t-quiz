@@ -14,15 +14,34 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 
+// Custom hook to detect 4K resolution
+const use4KDisplay = () => {
+  const [is4K, setIs4K] = useState(false);
+  
+  useEffect(() => {
+    const checkResolution = () => {
+      setIs4K(window.innerWidth >= 3800 && window.innerHeight >= 2000);
+    };
+    
+    checkResolution();
+    window.addEventListener('resize', checkResolution);
+    
+    return () => window.removeEventListener('resize', checkResolution);
+  }, []);
+  
+  return is4K;
+};
+
 // FloatingAvatars Component with PropTypes
 const FloatingAvatars = ({ participants }) => {
+  const is4K = use4KDisplay();
   const [positions, setPositions] = useState([]);
   
   const generatePosition = useCallback(() => ({
-    x: Math.random() * 120 - 60,
-    y: Math.random() * 120 - 60,
-    scale: 0.9 + Math.random() * 0.5
-  }), []);
+    x: Math.random() * (is4K ? 120 : 80) - (is4K ? 60 : 40),
+    y: Math.random() * (is4K ? 120 : 80) - (is4K ? 60 : 40),
+    scale: 0.8 + Math.random() * (is4K ? 0.5 : 0.4)
+  }), [is4K]);
 
   const getAvatarUrl = useCallback((name) => {
     const avatarStyles = [
@@ -38,8 +57,8 @@ const FloatingAvatars = ({ participants }) => {
     const style = avatarStyles[Math.abs(hash) % avatarStyles.length];
     const bgColor = backgroundColors[Math.abs(hash >> 4) % backgroundColors.length];
     
-    return `https://api.dicebear.com/7.x/${style}/svg?seed=${hash}&backgroundColor=${bgColor}&size=250`;
-  }, []);
+    return `https://api.dicebear.com/7.x/${style}/svg?seed=${hash}&backgroundColor=${bgColor}&size=${is4K ? 250 : 150}`;
+  }, [is4K]);
 
   useEffect(() => {
     setPositions(participants.map((p) => ({
@@ -50,7 +69,7 @@ const FloatingAvatars = ({ participants }) => {
   }, [participants, generatePosition, getAvatarUrl]);
 
   return (
-    <div className="fixed bottom-48 right-48 w-80 h-80">
+    <div className={`fixed ${is4K ? 'bottom-48 right-48 w-80 h-80' : 'bottom-24 right-24 w-40 h-40'}`}>
       <div className="relative w-full h-full">
         {positions.map((pos) => (
           <div
@@ -64,7 +83,7 @@ const FloatingAvatars = ({ participants }) => {
               <img
                 src={pos.url}
                 alt={`Avatar for ${pos.id}`}
-                className="w-24 h-24 rounded-full bg-white shadow-xl"
+                className={`${is4K ? 'w-24 h-24' : 'w-12 h-12'} rounded-full bg-white ${is4K ? 'shadow-xl' : 'shadow-lg'}`}
               />
               <div className="absolute inset-0 rounded-full bg-blue-200 opacity-20" />
             </div>
@@ -86,6 +105,7 @@ FloatingAvatars.propTypes = {
 
 // Main PresentQues Component
 const PresentQues = () => {
+  const is4K = use4KDisplay();
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const clientUrl = import.meta.env.VITE_CLIENT_URL || window.location.origin;
 
@@ -177,7 +197,6 @@ const PresentQues = () => {
 
   useEffect(() => {
     if (!stompClientRef.current) {
-      // const socket = new SockJS(`${baseUrl}/quiz-websocket`);
       const client = new Client({
         webSocketFactory: () => new SockJS(`${baseUrl}/quiz-websocket`),
         onConnect: () => {
@@ -228,18 +247,18 @@ const PresentQues = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50">
       {/* Main content section */}
-      <div className="w-full max-w-[2400px] mx-auto px-16 py-16">
+      <div className={`w-full ${is4K ? 'max-w-[2400px] px-16 py-16' : 'max-w-6xl px-4 sm:px-6 lg:px-8 py-6'} mx-auto`}>
         {/* Header */}
-        <div className="text-center space-y-8 mb-24">
-          <h1 className="text-8xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        <div className={`text-center space-y-4 ${is4K ? 'space-y-8 mb-24' : 'mb-8 sm:mb-12'}`}>
+          <h1 className={`${is4K ? 'text-8xl' : 'text-4xl sm:text-5xl'} font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent`}>
             Telusko Quiz
           </h1>
-          <div className="mt-16 space-y-8">
-            <h2 className="text-5xl text-gray-700">Join the Quiz at</h2>
-            <div className="relative group flex items-center justify-center space-x-4">
+          <div className={`${is4K ? 'mt-16 space-y-8' : 'mt-6 sm:mt-8 space-y-4'}`}>
+            <h2 className={`${is4K ? 'text-5xl' : 'text-2xl sm:text-3xl'} text-gray-700`}>Join the Quiz at</h2>
+            <div className="relative group flex items-center justify-center space-x-2">
               <a
                 href="https://telusq.telusko.com/join"
-                className="text-7xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 break-all sm:break-normal"
+                className={`${is4K ? 'text-7xl' : 'text-3xl sm:text-4xl md:text-5xl'} font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 break-all sm:break-normal`}
               >
                 telusq.telusko.com/join
               </a>
@@ -248,14 +267,14 @@ const PresentQues = () => {
                   <TooltipTrigger asChild>
                     <Button
                       variant="secondary"
-                      size="lg"
+                      size={is4K ? "lg" : "sm"}
                       onClick={() => copyToClipboard(joinUrl, setIsLinkTooltipOpen, setLinkTooltipMessage, "Copy link")}
-                      className="hover:bg-blue-100 h-16 w-16"
+                      className={`hover:bg-blue-100 ${is4K ? 'h-16 w-16' : ''}`}
                     >
-                      <Link className="h-10 w-10" />
+                      <Link className={is4K ? "h-10 w-10" : "h-6 w-6"} />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="text-xl p-4">
+                  <TooltipContent className={is4K ? "text-xl p-4" : ""}>
                     <p>{linkTooltipMessage}</p>
                   </TooltipContent>
                 </Tooltip>
@@ -265,25 +284,25 @@ const PresentQues = () => {
         </div>
 
         {/* Quiz Code and QR Section */}
-        <div className="p-16 rounded-3xl w-full">
-          <div className="flex flex-row items-center justify-between gap-16">
-            <div className="text-center w-full">
-              <div className="text-6xl font-medium text-gray-600 mb-12">Quiz Code</div>
-              <div className="flex items-center justify-center space-x-8">
-                <code className="text-9xl font-mono font-bold text-blue-600">{code}</code>
+        <div className={`${is4K ? 'p-16' : 'p-2 sm:p-8'} rounded-xl w-full`}>
+          <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center justify-between ${is4K ? 'gap-16' : 'gap-6'}`}>
+            <div className={`text-center ${isMobile ? 'w-full' : (is4K ? 'w-full' : 'w-auto')}`}>
+              <div className={`${is4K ? 'text-6xl mb-12' : 'text-3xl sm:text-4xl mb-6'} font-medium text-gray-600`}>Quiz Code</div>
+              <div className="flex items-center justify-center space-x-4">
+                <code className={`${is4K ? 'text-9xl' : 'text-6xl sm:text-7xl'} font-mono font-bold text-blue-600`}>{code}</code>
                 <TooltipProvider>
                   <Tooltip open={isTooltipOpen}>
                     <TooltipTrigger asChild>
                       <Button
                         variant="secondary"
-                        size="lg"
+                        size={is4K ? "lg" : "lg"}
                         onClick={() => copyToClipboard(code, setIsTooltipOpen, setTooltipMessage, "Copy code")}
-                        className="hover:bg-blue-100 h-24 w-24"
+                        className={`hover:bg-blue-100 ${is4K ? 'h-24 w-24' : ''}`}
                       >
-                        <Copy className="h-12 w-12" />
+                        <Copy className={is4K ? "h-12 w-12" : "h-6 w-6"} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent className="text-xl p-4">
+                    <TooltipContent className={is4K ? "text-xl p-4" : ""}>
                       <p>{tooltipMessage}</p>
                     </TooltipContent>
                   </Tooltip>
@@ -291,13 +310,13 @@ const PresentQues = () => {
               </div>
             </div>
 
-            <div className="h-80 w-px bg-gray-300" />
+            {!isMobile && <div className={`hidden sm:block ${is4K ? 'h-80' : 'h-48'} w-px bg-gray-300`} />}
 
-            <div className="flex flex-col items-center space-y-8 w-full">
-              <div className="rounded-xl shadow-2xl p-6 bg-white">
-                <QRCode value={joinUrl} size={520} />
+            <div className={`flex flex-col items-center ${is4K ? 'space-y-8' : 'space-y-4'} ${isMobile ? 'w-full' : (is4K ? 'w-full' : 'w-auto')}`}>
+              <div className={`${is4K ? 'rounded-xl shadow-2xl p-6 bg-white' : 'rounded-lg shadow-lg'}`}>
+                <QRCode value={joinUrl} size={isMobile ? 160 : (is4K ? 520 : 280)} />
               </div>
-              <p className="text-4xl font-medium text-gray-600 text-center mt-8">
+              <p className={`${is4K ? 'text-4xl mt-8' : 'text-xl sm:text-2xl'} font-medium text-gray-600 text-center`}>
                 Scan to join the quiz session
               </p>
             </div>
@@ -305,22 +324,22 @@ const PresentQues = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-24 flex flex-row items-center justify-center gap-12">
+        <div className={`${is4K ? 'mt-24' : 'mt-12'} flex ${isMobile ? 'flex-col' : 'flex-row'} items-center justify-center ${is4K ? 'gap-12' : 'gap-6'}`}>
           <Button
             variant="outline"
-            size="lg"
-            className="text-3xl h-24 px-12"
+            size={is4K ? "lg" : "lg"}
+            className={`${is4K ? 'text-3xl h-24 px-12' : 'text-lg'}`}
             onClick={() => setShowParticipants(true)}
           >
-            <Users className="h-10 w-10 mr-4" />
+            <Users className={is4K ? "h-10 w-10 mr-4" : "h-5 w-5 mr-2"} />
             {participants.length} Participants
           </Button>
           <Button
             size="lg"
-            className="w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl h-24 text-3xl px-12"
+            className={`${isMobile ? 'w-full' : (is4K ? 'w-auto' : 'w-full sm:w-auto')} bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white ${is4K ? 'shadow-xl h-24 text-3xl px-12' : 'shadow-md h-14 text-lg'}`}
             onClick={presentQuestions}
           >
-            <Presentation className="h-12 w-12 mr-6" />
+            <Presentation className={is4K ? "h-12 w-12 mr-6" : "h-6 w-6 mr-2"} />
             Present Questions
           </Button>
         </div>
@@ -328,35 +347,35 @@ const PresentQues = () => {
 
       {/* Participants Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 w-[450px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 
+        className={`fixed inset-y-0 left-0 ${is4K ? 'w-[450px]' : 'w-80'} bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-50 
           ${showParticipants ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="h-full flex flex-col">
-          <div className="flex justify-between items-center p-8 border-b">
-            <h2 className="text-4xl font-semibold">Quiz Participants</h2>
+          <div className={`flex justify-between items-center ${is4K ? 'p-8' : 'p-4'} border-b`}>
+            <h2 className={`${is4K ? 'text-4xl' : 'text-xl'} font-semibold`}>Quiz Participants</h2>
             <Button
               variant="ghost"
               size="icon"
-              className="h-16 w-16"
+              className={is4K ? "h-16 w-16" : ""}
               onClick={() => setShowParticipants(false)}
             >
-              <X className="h-10 w-10" />
+              <X className={is4K ? "h-10 w-10" : "h-5 w-5"} />
             </Button>
           </div>
-          <div className="flex-grow overflow-y-auto p-8">
+          <div className={`flex-grow overflow-y-auto ${is4K ? 'p-8' : 'p-4'}`}>
             {participants.length === 0 ? (
-              <p className="text-center text-gray-500 py-8 text-2xl">
+              <p className={`text-center text-gray-500 ${is4K ? 'py-8 text-2xl' : 'py-4'}`}>
                 No participants have joined yet
               </p>
             ) : (
-              <ul className="space-y-4">
+              <ul className={is4K ? "space-y-4" : "space-y-2"}>
                 {participants.map((participant) => (
                   <li
                     key={participant.name}
-                    className="flex items-center space-x-4 p-4 rounded-xl bg-gray-50"
+                    className={`flex items-center ${is4K ? 'space-x-4 p-4 rounded-xl' : 'space-x-2 p-2 rounded-lg'} bg-gray-50`}
                   >
-                    <Users className="h-8 w-8 text-gray-500" />
-                    <span className="break-all text-2xl">{participant.name}</span>
+                    <Users className={is4K ? "h-8 w-8" : "h-4 w-4"} text-gray-500 />
+                    <span className={`break-all ${is4K ? 'text-2xl' : ''}`}>{participant.name}</span>
                   </li>
                 ))}
               </ul>
@@ -369,7 +388,7 @@ const PresentQues = () => {
       <FloatingAvatars participants={participants} />
 
       <button
-        className="fixed bottom-12 right-12 sm:bottom-24 sm:right-24 group focus:outline-none"
+        className={`fixed ${is4K ? 'bottom-12 right-12' : 'bottom-4 right-4 sm:bottom-10 sm:right-10'} group focus:outline-none`}
         onClick={() => setShowParticipants(true)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -382,16 +401,16 @@ const PresentQues = () => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="h-32 w-32 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center shadow-2xl relative">
-                <MessageCircle className="h-16 w-16 text-white" />
+              <div className={`${is4K ? 'h-32 w-32' : 'h-12 w-12 sm:h-16 sm:w-16'} rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center ${is4K ? 'shadow-2xl' : 'shadow-lg'} relative`}>
+                <MessageCircle className={`${is4K ? 'h-16 w-16' : 'h-8 w-8 sm:h-10 sm:w-10'} text-white`} />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white text-3xl font-bold">
+                  <span className={`text-white ${is4K ? 'text-3xl' : 'text-base sm:text-lg'} font-bold`}>
                     {participants.length}
                   </span>
                 </div>
               </div>
             </TooltipTrigger>
-            <TooltipContent className="text-xl p-4">
+            <TooltipContent className={is4K ? "text-xl p-4" : ""}>
               <p>View Participants</p>
             </TooltipContent>
           </Tooltip>

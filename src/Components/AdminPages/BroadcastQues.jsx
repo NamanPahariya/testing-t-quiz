@@ -29,6 +29,24 @@ import {
   Link,
 } from "lucide-react";
 
+// Custom hook to detect 4K resolution
+const use4KDisplay = () => {
+  const [is4K, setIs4K] = useState(false);
+  
+  useEffect(() => {
+    const checkResolution = () => {
+      setIs4K(window.innerWidth >= 3800 && window.innerHeight >= 2000);
+    };
+    
+    checkResolution();
+    window.addEventListener('resize', checkResolution);
+    
+    return () => window.removeEventListener('resize', checkResolution);
+  }, []);
+  
+  return is4K;
+};
+
 // Constants
 const TOOLTIP_COPY_DURATION = 1200;
 const TOOLTIP_ERROR_DURATION = 1500;
@@ -96,6 +114,7 @@ const useClipboard = () => {
 
 // Main component
 const BroadcastQues = () => {
+  const is4K = use4KDisplay();
   const baseUrl = import.meta.env.VITE_BASE_URL;
   const location = useLocation();
   const navigate = useNavigate();
@@ -197,14 +216,14 @@ const BroadcastQues = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-12">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
       <JoinSection 
         joinUrl={joinUrl}
         tooltipState={tooltipState}
         onCopy={copyToClipboard}
       />
       
-      <div className="w-full max-w-[3000px] px-16">
+      <div className={`w-full ${is4K ? 'max-w-[3000px] px-16' : 'max-w-4xl'}`}>
         <QuizProgress
           currentIndex={quizState.currentQuestionIndex}
           totalQuestions={quizState.questionLength}
@@ -235,27 +254,31 @@ const QuestionType = PropTypes.shape({
 });
 
 // Component for quiz end screen
-const QuizEndScreen = ({ message, onNavigate }) => (
-  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-    <Card className="w-full max-w-4xl p-8">
-      <CardHeader className="text-center p-12">
-        <CardTitle className="text-6xl font-bold text-gray-900 mb-8">
-          Quiz Completed!
-        </CardTitle>
-        <CardDescription className="text-gray-600 text-3xl mb-12">
-          {message}
-        </CardDescription>
-        <Button 
-          variant="secondary" 
-          onClick={onNavigate}
-          className="text-2xl px-8 py-6 h-auto"
-        >
-          View Leaderboard <TrendingUp className="h-8 w-8 ml-4" />
-        </Button>
-      </CardHeader>
-    </Card>
-  </div>
-);
+const QuizEndScreen = ({ message, onNavigate }) => {
+  const is4K = use4KDisplay();
+  
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Card className={`w-full ${is4K ? 'max-w-4xl p-8' : 'max-w-xl'}`}>
+        <CardHeader className={`text-center ${is4K ? 'p-12' : ''}`}>
+          <CardTitle className={`${is4K ? 'text-6xl mb-8' : 'text-2xl'} font-bold text-gray-900`}>
+            Quiz Completed!
+          </CardTitle>
+          <CardDescription className={`text-gray-600 ${is4K ? 'text-3xl mb-12' : 'mt-2'}`}>
+            {message}
+          </CardDescription>
+          <Button 
+            variant="secondary" 
+            onClick={onNavigate}
+            className={is4K ? "text-2xl px-8 py-6 h-auto" : ""}
+          >
+            View Leaderboard <TrendingUp className={is4K ? "h-8 w-8 ml-4" : "h-4 w-4"} />
+          </Button>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+};
 
 QuizEndScreen.propTypes = {
   message: PropTypes.string.isRequired,
@@ -263,55 +286,63 @@ QuizEndScreen.propTypes = {
 };
 
 // Component for loading screen
-const LoadingScreen = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-    <Card className="w-full max-w-4xl p-8">
-      <CardHeader className="p-12">
-        <Skeleton className="h-16 w-3/4 mx-auto mb-8" />
-        <Skeleton className="h-8 w-1/2 mx-auto" />
-      </CardHeader>
-      <CardContent className="p-12">
-        <div className="space-y-8">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-);
+const LoadingScreen = () => {
+  const is4K = use4KDisplay();
+  
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Card className={`w-full ${is4K ? 'max-w-4xl p-8' : 'max-w-xl'}`}>
+        <CardHeader className={is4K ? "p-12" : ""}>
+          <Skeleton className={`${is4K ? 'h-16' : 'h-8'} w-3/4 mx-auto ${is4K ? 'mb-8' : 'mb-4'}`} />
+          <Skeleton className={`${is4K ? 'h-8' : 'h-4'} w-1/2 mx-auto`} />
+        </CardHeader>
+        <CardContent className={is4K ? "p-12" : ""}>
+          <div className={`${is4K ? 'space-y-8' : 'space-y-4'}`}>
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className={`${is4K ? 'h-24' : 'h-12'} w-full`} />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 // Component for join section
-const JoinSection = ({ joinUrl, tooltipState, onCopy }) => (
-  <div className="w-full flex flex-col items-center justify-center space-y-8 mt-16 mb-24">
-    <h2 className="text-5xl text-gray-700 font-medium">Join the Quiz at</h2>
-    <div className="flex items-center justify-center space-x-6">
-      <a
-        href={`https://${joinUrl}`}
-        className="text-7xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-indigo-600 hover:to-blue-600 transition-all duration-300"
-      >
-        telusq.telusko.com/join
-      </a>
-      <TooltipProvider>
-        <Tooltip open={tooltipState.isOpen}>
-          <TooltipTrigger asChild>
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => onCopy(joinUrl)}
-              className="hover:bg-blue-100 h-16 w-16"
-            >
-              <Link className="h-8 w-8" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent className="text-2xl p-4">
-            <p>{tooltipState.message}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+const JoinSection = ({ joinUrl, tooltipState, onCopy }) => {
+  const is4K = use4KDisplay();
+  
+  return (
+    <div className={`w-full flex flex-col items-center justify-center space-y-4 ${is4K ? 'space-y-8 mt-16 mb-24' : 'mt-8 mb-12'}`}>
+      <h2 className={`${is4K ? 'text-5xl' : 'text-2xl'} text-gray-700 font-medium`}>Join the Quiz at</h2>
+      <div className={`flex items-center justify-center ${is4K ? 'space-x-6' : 'space-x-3'}`}>
+        <a
+          href={`https://${joinUrl}`}
+          className={`${is4K ? 'text-7xl' : 'text-4xl'} font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-indigo-600 hover:to-blue-600 transition-all duration-300`}
+        >
+          telusq.telusko.com/join
+        </a>
+        <TooltipProvider>
+          <Tooltip open={tooltipState.isOpen}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size={is4K ? "lg" : "sm"}
+                onClick={() => onCopy(joinUrl)}
+                className={`hover:bg-blue-100 ${is4K ? 'h-16 w-16' : ''}`}
+              >
+                <Link className={is4K ? "h-8 w-8" : "h-4 w-4"} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className={is4K ? "text-2xl p-4" : ""}>
+              <p>{tooltipState.message}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 JoinSection.propTypes = {
   joinUrl: PropTypes.string.isRequired,
@@ -323,37 +354,41 @@ JoinSection.propTypes = {
 };
 
 // Component for quiz progress
-const QuizProgress = ({ currentIndex, totalQuestions, progress, timeLimit, onTimerComplete }) => (
-  <div className="mb-16">
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-4">
-        <Timer className="w-8 h-8 text-gray-500" />
-        <span className="text-2xl text-gray-600">
-          Question {currentIndex + 1} of {totalQuestions}
-        </span>
+const QuizProgress = ({ currentIndex, totalQuestions, progress, timeLimit, onTimerComplete }) => {
+  const is4K = use4KDisplay();
+  
+  return (
+    <div className={is4K ? "mb-16" : "mb-8"}>
+      <div className={`flex items-center justify-between ${is4K ? 'mb-6' : 'mb-2'}`}>
+        <div className={`flex items-center ${is4K ? 'gap-4' : 'gap-2'}`}>
+          <Timer className={is4K ? "w-8 h-8" : "w-4 h-4"} text-gray-500 />
+          <span className={`${is4K ? 'text-2xl' : 'text-sm'} text-gray-600`}>
+            Question {currentIndex + 1} of {totalQuestions}
+          </span>
+        </div>
+        <CountdownCircleTimer
+          key={currentIndex}
+          isPlaying
+          duration={timeLimit}
+          size={is4K ? 180 : 90}
+          strokeWidth={is4K ? 8 : 4}
+          colors={["#10B981", "#F59E0B", "#EF4444"]}
+          colorsTime={[
+            Math.floor(timeLimit * 0.7),
+            Math.floor(timeLimit * 0.3),
+            0,
+          ]}
+          onComplete={onTimerComplete}
+        >
+          {({ remainingTime }) => (
+            <span className={`${is4K ? 'text-4xl' : 'text-sm'} font-medium`}>{remainingTime}s</span>
+          )}
+        </CountdownCircleTimer>
       </div>
-      <CountdownCircleTimer
-        key={currentIndex}
-        isPlaying
-        duration={timeLimit}
-        size={180}
-        strokeWidth={8}
-        colors={["#10B981", "#F59E0B", "#EF4444"]}
-        colorsTime={[
-          Math.floor(timeLimit * 0.7),
-          Math.floor(timeLimit * 0.3),
-          0,
-        ]}
-        onComplete={onTimerComplete}
-      >
-        {({ remainingTime }) => (
-          <span className="text-4xl font-medium">{remainingTime}s</span>
-        )}
-      </CountdownCircleTimer>
+      <Progress value={progress} className={is4K ? "h-4" : "h-2"} />
     </div>
-    <Progress value={progress} className="h-4" />
-  </div>
-);
+  );
+};
 
 QuizProgress.propTypes = {
   currentIndex: PropTypes.number.isRequired,
@@ -365,6 +400,7 @@ QuizProgress.propTypes = {
 
 // Component for quiz card
 const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
+  const is4K = use4KDisplay();
   const options = [
     { id: "option1", value: question.option1 },
     { id: "option2", value: question.option2 },
@@ -373,21 +409,21 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
   ];
 
   return (
-    <Card className="w-full shadow-2xl">
-      <CardHeader className="p-12 pb-6">
-        <CardTitle className="text-5xl font-semibold leading-tight">
+    <Card className={`w-full ${is4K ? 'shadow-2xl' : ''}`}>
+      <CardHeader className={is4K ? "p-12 pb-6" : ""}>
+        <CardTitle className={`${is4K ? 'text-5xl' : 'text-xl'} font-semibold leading-tight`}>
           {question.questionText}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-12 pt-6">
-        <div className="space-y-8">
+      <CardContent className={is4K ? "p-12 pt-6" : ""}>
+        <div className={is4K ? "space-y-8" : "space-y-4"}>
           {options.map((option) => {
             const isCorrectOption = isTimeUp && question.correctAnswer === option.id;
             return (
-              <div key={option.id} className="flex items-center space-x-4">
+              <div key={option.id} className={`flex items-center ${is4K ? 'space-x-4' : 'space-x-2'}`}>
                 <Label
                   htmlFor={option.id}
-                  className={`flex-1 p-8 rounded-xl transition-colors cursor-pointer flex justify-between items-center text-3xl
+                  className={`flex-1 ${is4K ? 'p-8 rounded-xl text-3xl' : 'p-4 rounded-lg'} transition-colors cursor-pointer flex justify-between items-center
                     ${isCorrectOption 
                       ? 'bg-green-100 hover:bg-green-200' 
                       : 'bg-gray-50 hover:bg-gray-100'
@@ -395,7 +431,7 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
                 >
                   <span>{option.value}</span>
                   {isCorrectOption && (
-                    <CheckCircle2 className="h-10 w-10 text-green-600" />
+                    <CheckCircle2 className={`${is4K ? 'h-10 w-10' : 'h-5 w-5'} text-green-600`} />
                   )}
                 </Label>
               </div>
@@ -403,11 +439,11 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
           })}
         </div>
 
-        <div className="flex justify-end mt-12">
+        <div className={`flex justify-end ${is4K ? 'mt-12' : 'mt-6'}`}>
           {isLastQuestion ? (
             <Button
               onClick={onNext}
-              className="px-12 py-6 text-2xl h-auto"
+              className={is4K ? "px-12 py-6 text-2xl h-auto" : "px-6"}
               variant="default"
             >
               Finish
@@ -416,11 +452,11 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-24 w-24 rounded-full"
+              className={`${is4K ? 'h-24 w-24' : 'h-12 w-12'} rounded-full`}
               onClick={onNext}
             >
               <LucideCircleChevronRight
-                style={{ width: "80px", height: "80px" }}
+                style={{ width: is4K ? "80px" : "40px", height: is4K ? "80px" : "40px" }}
               />
             </Button>
           )}
