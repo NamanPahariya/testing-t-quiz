@@ -82,7 +82,7 @@ export const RefreshMessage = () => (
           <h3 className="font-semibold mb-2">How to Participate:</h3>
           <ul className="text-sm space-y-2 text-left">
             <li>• Questions will appear here when the host starts</li>
-            <li>• You'll have 15 seconds to answer each question</li>
+            <li>• You'll have limited seconds to answer each question</li>
             <li>• Select your answer and click Submit</li>
             <li>• Instant feedback will show if you're correct</li>
           </ul>
@@ -139,8 +139,8 @@ export const RefreshMessage = () => (
   };
 
   export const Leaderboard = ({userStats}) =>{
-    console.log(userStats,'userStats hai')
-    console.log(userStats.rank,userStats.score,userStats.name,'values')
+    // console.log(userStats,'userStats hai')
+    // console.log(userStats.rank,userStats.score,userStats.name,'values')
     return(
     <div className="w-full max-w-2xl transform transition-all duration-500 ease-in-out">
       <Card className="w-full shadow-lg">

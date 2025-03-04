@@ -19,14 +19,13 @@ import {
   WelcomeContent,
 } from "./QuizComponents";
 
-// import WakeLockManager from "./WakeLockManager";
 
 const QuizPage = () => {
   const baseUrl = import.meta.env.VITE_BASE_URL;
-  const [questions, setQuestions] = useState([]);
-  console.log("questions", questions);
+  // const [questions, setQuestions] = useState([]);
+  //console.log("questions", questions);
   const [currentQuestion, setCurrentQuestion] = useState([]);
-  console.log(currentQuestion, "currentquestions");
+  //console.log(currentQuestion, "currentquestions");
   const [selectedOption, setSelectedOption] = useState("");
   const [quizEnded, setQuizEnded] = useState(false);
   const [quizEndMessage, setQuizEndMessage] = useState("");
@@ -36,10 +35,6 @@ const QuizPage = () => {
   const [isCorrectSelection, setIsCorrectSelection] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [questionCount, setQuestionCount] = useState(1);
-  // const [questionLength, setQuestionLength] = useState(() => {
-  //   const storedLength = sessionStorage.getItem("initialQuestionLength");
-  //   return storedLength ? parseInt(storedLength, 10) : 0;
-  // });
   const [questionLength,setQuestionLength] = useState('');
   const [remainingTime, setRemainingTime] = useState(null);
   const [leaderboard, setLeaderboard] = useState(false);
@@ -64,6 +59,22 @@ const QuizPage = () => {
     RECONNECTING: "reconnecting",
   };
 
+
+  useEffect(() => {
+    // Check if this is the first mount or a refresh
+    const hasVisitedQuizPage = sessionStorage.getItem("isRefreshed");
+    
+    if (!hasVisitedQuizPage) {
+      // First mount - set the flag
+      sessionStorage.setItem("isRefreshed", "true");
+    } else {
+      // This is a refresh - show refresh message
+      setShowRefreshMessage(true);
+      setIsRefreshed(true);
+    }
+  }, []);
+
+
   // References that need to be tracked
   const stompClientRef = useRef(null);
   const heartbeatTimeoutRef = useRef(null);
@@ -84,7 +95,7 @@ const QuizPage = () => {
   const safeDeactivateClient = async () => {
     return new Promise((resolve) => {
       if (stompClientRef.current && stompClientRef.current.connected) {
-        console.log("Safely deactivating STOMP client...");
+        //console.log("Safely deactivating STOMP client...");
         // First clear any pending timeouts
         if (heartbeatTimeoutRef.current) {
           clearTimeout(heartbeatTimeoutRef.current);
@@ -127,9 +138,9 @@ const QuizPage = () => {
         connectionState === CONNECTION_STATES.CONNECTED) &&
       !isReconnect
     ) {
-      console.log(
-        "Already connecting or connected, skipping connection attempt"
-      );
+      // console.log(
+      //   "Already connecting or connected, skipping connection attempt"
+      // );
       return;
     }
 
@@ -166,13 +177,12 @@ const QuizPage = () => {
         heartbeatOutgoing: 500, // 25 seconds, matching backend
         // Apply exponential backoff for reconnect - this helps with network transitions
         reconnectDelay: (attempt) => {
-          // Start with 1-2 seconds, grow exponentially, cap at 30-60 seconds
-          console.log(`Reconnection Attempt #${attempt}`);
+          // Start with .5 seconds, grow exponentially, cap at 5 seconds
           return Math.min(500 * Math.pow(1.5, attempt), 5000);
         },
 
         onConnect: () => {
-          console.log("Connected to WebSocket");
+          //console.log("Connected to WebSocket");
           setConnectionState(CONNECTION_STATES.CONNECTED);
           reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
 
@@ -182,27 +192,21 @@ const QuizPage = () => {
           // Subscribe to quiz questions
           client.subscribe(`/topic/quizQuestions/${sessionCode}`, (message) => {
             const broadcastedQuestions = JSON.parse(message.body);
-            const length = broadcastedQuestions.length;
-            if (length > 0) {
-              setQuestionLength(length);
-            }
-            console.log("Received questions:", broadcastedQuestions);
-            // if (
-            //   broadcastedQuestions.length > 0 &&
-            //   !sessionStorage.getItem("initialQuestionLength")
-            // ) {
-            //   sessionStorage.setItem("initialQuestionLength", length);
+            // const length = broadcastedQuestions.length;
+            // if (length > 0) {
+            //   setQuestionLength(length);
             // }
+            //console.log("Received questions:", broadcastedQuestions);
             if (broadcastedQuestions.isQuizEnd) {
               setQuizEnded(true);
               setQuizEndMessage(broadcastedQuestions.message);
             }
-            if (!quizEnded) {
-              setQuestions(broadcastedQuestions);
-              setCurrentQuestion(broadcastedQuestions[0]);
-              setWaitingForNextQuestion(false);
-              setTimeUp(false);
-            }
+            // if (!quizEnded) {
+            //   setQuestions(broadcastedQuestions);
+            //   setCurrentQuestion(broadcastedQuestions[0]);
+            //   setWaitingForNextQuestion(false);
+            //   setTimeUp(false);
+            // }
           });
 
           // Subscribe to current question
@@ -210,7 +214,7 @@ const QuizPage = () => {
             `/topic/currentQuestion/${sessionCode}`,
             (message) => {
               const newQuestion = JSON.parse(message.body);
-              console.log("Received new question:", newQuestion.question);
+              //console.log("Received new question:", newQuestion.question);
               // const storedLength = sessionStorage.getItem(
               //   "initialQuestionLength"
               // );
@@ -237,7 +241,7 @@ const QuizPage = () => {
           // Subscribe to timer updates
           client.subscribe(`/topic/timer/${sessionCode}`, (message) => {
             const timerData = JSON.parse(message.body);
-            console.log("Timer update:", timerData);
+            //console.log("Timer update:", timerData);
 
             setRemainingTime(timerData.remainingTime);
             setCurrentQuestionIndex(timerData.questionIndex);
@@ -258,8 +262,8 @@ const QuizPage = () => {
           client.subscribe(`/topic/leaderboard/${sessionCode}`, (message) => {
             const leaderboardData = JSON.parse(message.body);
             if (leaderboardData) {
-              console.log(leaderboardData, "leaderboard");
-              console.log("Setting leaderboard state to true");
+              //console.log(leaderboardData, "leaderboard");
+              //console.log("Setting leaderboard state to true");
               setLeaderboard(true);
               setShowLeaderboard(true);
 
@@ -267,9 +271,9 @@ const QuizPage = () => {
                 `/topic/userLeaderboard/${sessionCode}`,
                 (userMessage) => {
                   const userDetails = JSON.parse(userMessage.body);
-                  console.log(userDetails, "userDetails");
+                  //console.log(userDetails, "userDetails");
                   if (!userDetails.error && userDetails.name === name) {
-                    console.log("updating for the current name", name);
+                    //console.log("updating for the current name", name);
                     setUserStats({
                       score: userDetails.score,
                       rank: userDetails.rank,
@@ -293,7 +297,8 @@ const QuizPage = () => {
         },
 
         onWebSocketClose: () => {
-          console.log("WebSocket connection closed");
+          // agar connection lost ho gaya then reconnect delay function chalega 
+          //console.log("WebSocket connection closed");
           // Clear heartbeat monitoring
           if (heartbeatTimeoutRef.current) {
             clearTimeout(heartbeatTimeoutRef.current);
@@ -301,10 +306,13 @@ const QuizPage = () => {
           }
 
           // Only attempt reconnect if not intentionally disconnecting
-          if (connectionState !== CONNECTION_STATES.DISCONNECTED) {
-            setConnectionState(CONNECTION_STATES.DISCONNECTED);
-            attemptReconnect();
-          }
+          if (connectionState !== CONNECTION_STATES.DISCONNECTED )
+        //     (!stompClientRef.current || !stompClientRef.current?.active)) {
+        //   setConnectionState(CONNECTION_STATES.DISCONNECTED);
+        //   attemptReconnect();
+        // }
+        setConnectionState(CONNECTION_STATES.DISCONNECTED);
+          attemptReconnect();
         },
 
         onWebSocketError: (event) => {
@@ -312,16 +320,16 @@ const QuizPage = () => {
           handleConnectionFailure();
         },
 
-        debug: (str) => {
-          // Limit debug logging to reduce console noise
-          if (
-            str.includes("error") ||
-            str.includes("fail") ||
-            str.includes("connect")
-          ) {
-            console.debug(str);
-          }
-        },
+        // debug: (str) => {
+        //   // Limit debug logging to reduce console noise
+        //   if (
+        //     str.includes("error") ||
+        //     str.includes("fail") ||
+        //     str.includes("connect")
+        //   ) {
+        //     console.debug(str);
+        //   }
+        // },
       });
 
       stompClientRef.current = client;
@@ -339,13 +347,13 @@ const QuizPage = () => {
     }
 
     heartbeatTimeoutRef.current = setTimeout(() => {
-      console.log("Checking connection health...");
+      //console.log("Checking connection health...");
       if (stompClientRef.current && !stompClientRef.current.connected) {
-        console.warn("Connection appears stale despite no close event");
+        //console.log("Connection appears stale despite no close event");
         attemptReconnect();
       } else {
         // Re-schedule the check if connection is healthy
-        console.log("connection is good");
+        //console.log("connection is good");
         setupHeartbeatMonitoring();
       }
     }, 15000); // Check every 30 seconds
@@ -374,14 +382,14 @@ const QuizPage = () => {
     }
 
     const delay = Math.min(
-      500 * Math.pow(1.5, reconnectAttemptsRef.current),
-      1000
+      200 * Math.pow(1.3, reconnectAttemptsRef.current),
+      2000
     );
-    console.log(
-      `Attempting to reconnect in ${delay}ms (attempt ${
-        reconnectAttemptsRef.current + 1
-      }/${maxReconnectAttempts})`
-    );
+    // console.log(
+    //   `Attempting to reconnect in ${delay}ms (attempt ${
+    //     reconnectAttemptsRef.current + 1
+    //   }/${maxReconnectAttempts})`
+    // );
 
     reconnectTimeoutRef.current = setTimeout(() => {
       reconnectAttemptsRef.current++;
@@ -397,29 +405,29 @@ const QuizPage = () => {
       "addEventListener" in navigator.connection
     ) {
       navigator.connection.addEventListener("change", () => {
-        console.log("Network conditions changed, checking connection");
+        //console.log("Network conditions changed, checking connection");
         if (stompClientRef.current && !stompClientRef.current.connected) {
-          console.log(
-            "Network changed and disconnected, attempting to reconnect"
-          );
+          // console.log(
+          //   "Network changed and disconnected, attempting to reconnect"
+          // );
           attemptReconnect();
         } else {
-          console.log("you are already connected");
+          //console.log("you are already connected");
         }
       });
     }
 
     // Add event listener for online/offline events (works in all browsers)
     window.addEventListener("online", () => {
-      console.log("Browser reports online status");
+      //console.log("Browser reports online status");
       if (stompClientRef.current && !stompClientRef.current.connected) {
-        console.log("Device came online, attempting to reconnect");
+        //console.log("Device came online, attempting to reconnect");
         attemptReconnect();
       }
     });
 
     window.addEventListener("offline", () => {
-      console.log("Browser reports offline status");
+      //console.log("Browser reports offline status");
       // No need to do anything here, the socket will close on its own
     });
   };
@@ -430,7 +438,7 @@ const QuizPage = () => {
 
     // Clean up function
     return async () => {
-      console.log("Component unmounting, cleaning up connections");
+      //console.log("Component unmounting, cleaning up connections");
       setConnectionState(CONNECTION_STATES.DISCONNECTED);
 
       // Clear all timeouts and intervals
@@ -456,16 +464,16 @@ const QuizPage = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("Page became visible");
+        //console.log("Page became visible");
         // Check connection and reconnect if needed
         if (stompClientRef.current && !stompClientRef.current.connected) {
-          console.log("Reconnecting after visibility change");
+          //console.log("Reconnecting after visibility change");
           // Reset reconnect attempts on manual visibility change
           reconnectAttemptsRef.current = 0;
           attemptReconnect();
         }
       } else {
-        console.log("Page hidden");
+        //console.log("Page hidden");
         // On some platforms, we might want to pause certain activities
         // but keep connection open if possible
       }
@@ -485,7 +493,7 @@ const QuizPage = () => {
   //       stompClientRef.current &&
   //       !stompClientRef.current.connected
   //     ) {
-  //       console.log("Periodic check found disconnected client");
+  //       //console.log("Periodic check found disconnected client");
   //       attemptReconnect();
   //     }
   //   }, 60000); // Check every minute as a fallback
@@ -542,6 +550,7 @@ const QuizPage = () => {
       sessionStorage.removeItem("sessionCode");
       sessionStorage.removeItem("userId");
       sessionStorage.removeItem("quizPageLeaving");
+      sessionStorage.removeItem("isRefreshed");
       // sessionStorage.removeItem("initialQuestionLength");
 
       navigate("/join");
@@ -561,6 +570,7 @@ const QuizPage = () => {
       sessionStorage.removeItem("sessionCode");
       sessionStorage.removeItem("userId");
       sessionStorage.removeItem("quizPageLeaving");
+      sessionStorage.removeItem("isRefreshed");
       // sessionStorage.removeItem("initialQuestionLength");
     };
   }, []);
@@ -619,21 +629,21 @@ const QuizPage = () => {
   //   };
   // }, []);
 
-  useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      // Trigger the default browser prompt
-      event.preventDefault();
-      event.returnValue = ""; // Required for Chrome and other modern browsers
-    };
+  // useEffect(() => {
+  //   const handleBeforeUnload = (event) => {
+  //     // Trigger the default browser prompt
+  //     event.preventDefault();
+  //     event.returnValue = ""; // Required for Chrome and other modern browsers
+  //   };
   
-    // Add the beforeunload event listener
-    window.addEventListener("beforeunload", handleBeforeUnload);
+  //   // Add the beforeunload event listener
+  //   window.addEventListener("beforeunload", handleBeforeUnload);
   
-    // Cleanup the event listener on component unmount
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
+  //   // Cleanup the event listener on component unmount
+  //   return () => {
+  //     window.removeEventListener("beforeunload", handleBeforeUnload);
+  //   };
+  // }, []);
 
   const handleSubmit = async () => {
     if (!selectedOption || !currentQuestion || timeUp) return;
@@ -660,10 +670,10 @@ const QuizPage = () => {
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
       if (response.ok) {
-        // console.log(response,'response')
+        // //console.log(response,'response')
         const { message, elapsedTimes } = await response.json();
         const timeValue = elapsedTimes[0].ElapsedTime;
-        console.log("message:", message, "elsapsedTimes:", timeValue);
+        //console.log("message:", message, "elsapsedTimes:", timeValue);
         setElapsedTimes(timeValue);
       }
       setIsSubmitted(true);
@@ -727,7 +737,7 @@ const QuizPage = () => {
   );
 
   const handleManualReconnect = () => {
-    console.log("Manual reconnection requested by user");
+    //console.log("Manual reconnection requested by user");
     // Reset reconnect attempts counter
     reconnectAttemptsRef.current = 0;
     // Try to reconnect

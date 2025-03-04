@@ -56,8 +56,7 @@ const JoinQuiz = () => {
     const { id, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [id === "name" ? "studentName" : id]: value.trim()
-    }));
+      [id === "name" ? "studentName" : id]: value.replace(/^\s+/, "")    }));
   }, []);
 
   // Validate user input

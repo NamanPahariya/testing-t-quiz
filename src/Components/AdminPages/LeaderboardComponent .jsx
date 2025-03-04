@@ -252,11 +252,11 @@ const LeaderboardComponent = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={chartData.length * 75}>
+        <ResponsiveContainer width="80%" height={chartData.length * 75}>
           <BarChart
             layout="vertical"
             data={chartData}
-            margin={{ left: 50, top: 10, bottom: 10, right: 120 }}
+            margin={{ left: 20, top: 10, bottom: 10, right: 120 }}
           >
             <XAxis type="number" hide />
             <YAxis

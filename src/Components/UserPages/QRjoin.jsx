@@ -50,7 +50,7 @@ const QRJoin = () => {
 
   // Handle student name input change
   const handleNameChange = useCallback((e) => {
-    setStudentName(e.target.value.trim());
+    setStudentName(e.target.value.replace(/^\s+/, "") );
   }, []);
 
   // Establish WebSocket connection

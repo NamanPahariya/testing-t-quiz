@@ -28,7 +28,7 @@ const ConnectionAlertBadge = ({ connectionState, reconnectAttempts, maxReconnect
           borderColor: 'border-red-300',
           icon: <AlertTriangle className="h-4 w-4" />,
           message: 'Disconnected',
-          description: 'Connection to the quiz server has been lost.'
+          // description: 'Connection to the quiz server has been lost.'
         };
       case 'connecting':
         return {
@@ -37,7 +37,7 @@ const ConnectionAlertBadge = ({ connectionState, reconnectAttempts, maxReconnect
           borderColor: 'border-blue-300',
         //   icon: <Wifi className="h-4 w-4 animate-pulse" />,
           message: 'Connecting',
-          description: 'Establishing connection to the quiz server...'
+          // description: 'Establishing connection to the quiz server...'
         };
       case 'reconnecting':
         return {
@@ -46,7 +46,7 @@ const ConnectionAlertBadge = ({ connectionState, reconnectAttempts, maxReconnect
           borderColor: 'border-yellow-300',
         //   icon: <Wifi className="h-4 w-4 animate-spin" />,
           message: `Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})`,
-          description: 'Attempting to restore connection...'
+          // description: 'Attempting to restore connection...'
         };
       case 'connected':
         return {
@@ -55,7 +55,7 @@ const ConnectionAlertBadge = ({ connectionState, reconnectAttempts, maxReconnect
           borderColor: 'border-green-300',
           icon: <CheckCircle2 className="h-4 w-4" />,
           message: 'Connected',
-          description: 'Successfully connected to the quiz server.'
+          // description: 'Successfully connected to the quiz server.'
         };
       default:
         return {
