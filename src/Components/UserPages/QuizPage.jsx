@@ -68,7 +68,7 @@ const QuizPage = () => {
   const stompClientRef = useRef(null);
   const heartbeatTimeoutRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-  const connectionCheckIntervalRef = useRef(null);
+  // const connectionCheckIntervalRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 10;
   const [connectionState, setConnectionState] = useState(
@@ -167,7 +167,8 @@ const QuizPage = () => {
         // Apply exponential backoff for reconnect - this helps with network transitions
         reconnectDelay: (attempt) => {
           // Start with 1-2 seconds, grow exponentially, cap at 30-60 seconds
-          return Math.min(1000 * Math.pow(0.5, attempt), 30000);
+          console.log(`Reconnection Attempt #${attempt}`);
+          return Math.min(500 * Math.pow(1.5, attempt), 5000);
         },
 
         onConnect: () => {
@@ -373,7 +374,7 @@ const QuizPage = () => {
     }
 
     const delay = Math.min(
-      1000 * Math.pow(1.5, reconnectAttemptsRef.current),
+      500 * Math.pow(1.5, reconnectAttemptsRef.current),
       1000
     );
     console.log(
@@ -437,8 +438,8 @@ const QuizPage = () => {
         clearTimeout(heartbeatTimeoutRef.current);
       if (reconnectTimeoutRef.current)
         clearTimeout(reconnectTimeoutRef.current);
-      if (connectionCheckIntervalRef.current)
-        clearInterval(connectionCheckIntervalRef.current);
+      // if (connectionCheckIntervalRef.current)
+      //   clearInterval(connectionCheckIntervalRef.current);
 
       // Safely deactivate client
       await safeDeactivateClient();
@@ -477,24 +478,24 @@ const QuizPage = () => {
   }, []);
 
   // Optional: Add an interval check as a safety net for platforms with unreliable event handling
-  useEffect(() => {
-    connectionCheckIntervalRef.current = setInterval(() => {
-      if (
-        connectionState !== CONNECTION_STATES.DISCONNECTED &&
-        stompClientRef.current &&
-        !stompClientRef.current.connected
-      ) {
-        console.log("Periodic check found disconnected client");
-        attemptReconnect();
-      }
-    }, 60000); // Check every minute as a fallback
+  // useEffect(() => {
+  //   connectionCheckIntervalRef.current = setInterval(() => {
+  //     if (
+  //       connectionState !== CONNECTION_STATES.DISCONNECTED &&
+  //       stompClientRef.current &&
+  //       !stompClientRef.current.connected
+  //     ) {
+  //       console.log("Periodic check found disconnected client");
+  //       attemptReconnect();
+  //     }
+  //   }, 60000); // Check every minute as a fallback
 
-    return () => {
-      if (connectionCheckIntervalRef.current) {
-        clearInterval(connectionCheckIntervalRef.current);
-      }
-    };
-  }, [connectionState]);
+  //   return () => {
+  //     if (connectionCheckIntervalRef.current) {
+  //       clearInterval(connectionCheckIntervalRef.current);
+  //     }
+  //   };
+  // }, [connectionState]);
 
   const ConnectionStatusWithAlert = () => {
     return (
