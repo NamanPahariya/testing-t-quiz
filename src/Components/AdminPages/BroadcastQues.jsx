@@ -34,36 +34,6 @@ const TOOLTIP_COPY_DURATION = 1200;
 const TOOLTIP_ERROR_DURATION = 1500;
 const INITIAL_TOOLTIP_MESSAGE = "Copy link";
 
-// Custom hook for screen size
-const useScreenSize = () => {
-  const [screenSize, setScreenSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    is4K: window.innerWidth >= 3840,
-    is2K: window.innerWidth >= 2560 && window.innerWidth < 3840,
-    isFullHD: window.innerWidth >= 1920 && window.innerWidth < 2560,
-  });
-  
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setScreenSize({
-        width,
-        height,
-        is4K: width >= 3840,
-        is2K: width >= 2560 && width < 3840,
-        isFullHD: width >= 1920 && width < 2560,
-      });
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  return screenSize;
-};
-
 // Custom hook for WebSocket connection
 const useWebSocket = (baseUrl, code, onMessageReceived, onCurrentQuestionReceived) => {
   const stompClientRef = useRef(null);
@@ -130,7 +100,6 @@ const BroadcastQues = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const code = localStorage.getItem("code");
-  const screenSize = useScreenSize();
 
   const initialQuestions = useMemo(
     () => location.state?.questions || [],
@@ -150,21 +119,6 @@ const BroadcastQues = () => {
   const clientUrl = import.meta.env.VITE_CLIENT_URL || window.location.origin;
   const joinUrl = `${clientUrl}/join/${code}`;
   const { tooltipState, copyToClipboard } = useClipboard();
-
-  // Responsive sizing for timer
-  const getTimerSize = () => {
-    if (screenSize.is4K) return 140;
-    if (screenSize.is2K) return 120;
-    if (screenSize.isFullHD) return 100;
-    return 90; // Default
-  };
-
-  // Responsive stroke width for timer
-  const getTimerStrokeWidth = () => {
-    if (screenSize.is4K) return 8;
-    if (screenSize.is2K) return 6;
-    return 4; // Default
-  };
 
   // WebSocket message handlers
   const handleQuizMessage = useCallback((message) => {
@@ -229,47 +183,34 @@ const BroadcastQues = () => {
     return { shouldRepeat: false };
   }, []);
 
-  // Calculate container width based on screen size
-  const getContainerWidth = () => {
-    if (screenSize.is4K) return 'max-w-7xl';
-    if (screenSize.is2K) return 'max-w-6xl';
-    if (screenSize.isFullHD) return 'max-w-5xl';
-    return 'max-w-4xl';
-  };
-
   if (quizState.quizEnded) {
     return (
       <QuizEndScreen 
         message={quizState.quizEndMessage} 
         onNavigate={() => navigate("/leaderboard")} 
-        screenSize={screenSize}
       />
     );
   }
 
   if (!quizState.currentQuestion) {
-    return <LoadingScreen screenSize={screenSize} />;
+    return <LoadingScreen />;
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8 2k-screen:p-10 4k-screen:p-12">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-12">
       <JoinSection 
         joinUrl={joinUrl}
         tooltipState={tooltipState}
         onCopy={copyToClipboard}
-        screenSize={screenSize}
       />
       
-      <div className={`w-full ${getContainerWidth()}`}>
+      <div className="w-full max-w-[3000px] px-16">
         <QuizProgress
           currentIndex={quizState.currentQuestionIndex}
           totalQuestions={quizState.questionLength}
           progress={quizState.progress}
           timeLimit={quizState.currentQuestion.timeLimit}
           onTimerComplete={handleTimerComplete}
-          timerSize={getTimerSize()}
-          strokeWidth={getTimerStrokeWidth()}
-          screenSize={screenSize}
         />
 
         <QuizCard
@@ -277,7 +218,6 @@ const BroadcastQues = () => {
           isTimeUp={quizState.isTimeUp}
           isLastQuestion={quizState.currentQuestionIndex === quizState.questionLength - 1}
           onNext={presentNextQuestion}
-          screenSize={screenSize}
         />
       </div>
     </div>
@@ -295,22 +235,22 @@ const QuestionType = PropTypes.shape({
 });
 
 // Component for quiz end screen
-const QuizEndScreen = ({ message, onNavigate, screenSize }) => (
-  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
-    <Card className={`w-full ${screenSize.is4K ? 'max-w-4xl' : screenSize.is2K ? 'max-w-3xl' : 'max-w-xl'}`}>
-      <CardHeader className="text-center p-6 md:p-8 lg:p-10 2k-screen:p-12 4k-screen:p-16">
-        <CardTitle className="text-2xl md:text-3xl 2k-screen:text-4xl 4k-screen:text-5xl font-bold text-gray-900 mb-4">
+const QuizEndScreen = ({ message, onNavigate }) => (
+  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <Card className="w-full max-w-4xl p-8">
+      <CardHeader className="text-center p-12">
+        <CardTitle className="text-6xl font-bold text-gray-900 mb-8">
           Quiz Completed!
         </CardTitle>
-        <CardDescription className="text-gray-600 text-base md:text-lg 2k-screen:text-xl 4k-screen:text-2xl mt-2 mb-6">
+        <CardDescription className="text-gray-600 text-3xl mb-12">
           {message}
         </CardDescription>
         <Button 
           variant="secondary" 
           onClick={onNavigate}
-          className="text-sm md:text-base 2k-screen:text-lg 4k-screen:text-xl p-2 md:p-3 2k-screen:p-4 4k-screen:p-5"
+          className="text-2xl px-8 py-6 h-auto"
         >
-          LeaderBoard <TrendingUp className="h-4 w-4 md:h-5 md:w-5 2k-screen:h-6 2k-screen:w-6 ml-2" />
+          View Leaderboard <TrendingUp className="h-8 w-8 ml-4" />
         </Button>
       </CardHeader>
     </Card>
@@ -320,21 +260,20 @@ const QuizEndScreen = ({ message, onNavigate, screenSize }) => (
 QuizEndScreen.propTypes = {
   message: PropTypes.string.isRequired,
   onNavigate: PropTypes.func.isRequired,
-  screenSize: PropTypes.object.isRequired,
 };
 
 // Component for loading screen
-const LoadingScreen = ({ screenSize }) => (
+const LoadingScreen = () => (
   <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-    <Card className={`w-full ${screenSize.is4K ? 'max-w-4xl' : screenSize.is2K ? 'max-w-3xl' : 'max-w-xl'} p-4 md:p-6 2k-screen:p-8 4k-screen:p-10`}>
-      <CardHeader className="p-4 md:p-6 2k-screen:p-8 4k-screen:p-10">
-        <Skeleton className="h-8 md:h-10 2k-screen:h-12 4k-screen:h-16 w-3/4 mx-auto mb-4" />
-        <Skeleton className="h-4 md:h-5 2k-screen:h-6 4k-screen:h-8 w-1/2 mx-auto" />
+    <Card className="w-full max-w-4xl p-8">
+      <CardHeader className="p-12">
+        <Skeleton className="h-16 w-3/4 mx-auto mb-8" />
+        <Skeleton className="h-8 w-1/2 mx-auto" />
       </CardHeader>
-      <CardContent className="p-4 md:p-6 2k-screen:p-8 4k-screen:p-10">
-        <div className="space-y-4 md:space-y-6 2k-screen:space-y-8 4k-screen:space-y-10">
+      <CardContent className="p-12">
+        <div className="space-y-8">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-12 md:h-16 2k-screen:h-20 4k-screen:h-24 w-full" />
+            <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
       </CardContent>
@@ -342,25 +281,14 @@ const LoadingScreen = ({ screenSize }) => (
   </div>
 );
 
-LoadingScreen.propTypes = {
-  screenSize: PropTypes.object.isRequired,
-};
-
 // Component for join section
-const JoinSection = ({ joinUrl, tooltipState, onCopy, screenSize }) => (
-  <div className="w-full flex flex-col items-center justify-center space-y-4 md:space-y-6 2k-screen:space-y-8 4k-screen:space-y-10 mt-8 mb-12">
-    <h2 className="text-2xl md:text-3xl 2k-screen:text-4xl 4k-screen:text-5xl text-gray-700 font-medium">Join the Quiz at</h2>
-    <div className="flex items-center justify-center space-x-3 md:space-x-4">
+const JoinSection = ({ joinUrl, tooltipState, onCopy }) => (
+  <div className="w-full flex flex-col items-center justify-center space-y-8 mt-16 mb-24">
+    <h2 className="text-5xl text-gray-700 font-medium">Join the Quiz at</h2>
+    <div className="flex items-center justify-center space-x-6">
       <a
         href={`https://${joinUrl}`}
-        className={`
-          text-3xl md:text-4xl 2k-screen:text-5xl 4k-screen:text-6xl 
-          font-bold tracking-tight 
-          bg-gradient-to-r from-blue-600 to-indigo-600 
-          bg-clip-text text-transparent 
-          hover:from-indigo-600 hover:to-blue-600 
-          transition-all duration-300
-        `}
+        className="text-7xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-indigo-600 hover:to-blue-600 transition-all duration-300"
       >
         telusq.telusko.com/join
       </a>
@@ -369,14 +297,14 @@ const JoinSection = ({ joinUrl, tooltipState, onCopy, screenSize }) => (
           <TooltipTrigger asChild>
             <Button
               variant="secondary"
-              size={screenSize.is4K || screenSize.is2K ? "lg" : "sm"}
+              size="lg"
               onClick={() => onCopy(joinUrl)}
-              className="hover:bg-blue-100"
+              className="hover:bg-blue-100 h-16 w-16"
             >
-              <Link className={`${screenSize.is4K ? 'h-6 w-6' : screenSize.is2K ? 'h-5 w-5' : 'h-4 w-4'}`} />
+              <Link className="h-8 w-8" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent className={screenSize.is4K || screenSize.is2K ? 'text-lg p-3' : 'text-sm p-2'}>
+          <TooltipContent className="text-2xl p-4">
             <p>{tooltipState.message}</p>
           </TooltipContent>
         </Tooltip>
@@ -392,31 +320,15 @@ JoinSection.propTypes = {
     message: PropTypes.string.isRequired,
   }).isRequired,
   onCopy: PropTypes.func.isRequired,
-  screenSize: PropTypes.object.isRequired,
 };
 
 // Component for quiz progress
-const QuizProgress = ({ 
-  currentIndex, 
-  totalQuestions, 
-  progress, 
-  timeLimit, 
-  onTimerComplete,
-  timerSize,
-  strokeWidth,
-  screenSize
-}) => (
-  <div className="mb-6 md:mb-8 2k-screen:mb-10 4k-screen:mb-12">
-    <div className="flex items-center justify-between mb-2 md:mb-4">
-      <div className="flex items-center gap-2 md:gap-3">
-        <Timer className={`
-          ${screenSize.is4K ? 'w-6 h-6' : screenSize.is2K ? 'w-5 h-5' : 'w-4 h-4'} 
-          text-gray-500
-        `} />
-        <span className={`
-          ${screenSize.is4K ? 'text-xl' : screenSize.is2K ? 'text-lg' : screenSize.isFullHD ? 'text-base' : 'text-sm'} 
-          text-gray-600
-        `}>
+const QuizProgress = ({ currentIndex, totalQuestions, progress, timeLimit, onTimerComplete }) => (
+  <div className="mb-16">
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-4">
+        <Timer className="w-8 h-8 text-gray-500" />
+        <span className="text-2xl text-gray-600">
           Question {currentIndex + 1} of {totalQuestions}
         </span>
       </div>
@@ -424,8 +336,8 @@ const QuizProgress = ({
         key={currentIndex}
         isPlaying
         duration={timeLimit}
-        size={timerSize}
-        strokeWidth={strokeWidth}
+        size={180}
+        strokeWidth={8}
         colors={["#10B981", "#F59E0B", "#EF4444"]}
         colorsTime={[
           Math.floor(timeLimit * 0.7),
@@ -435,19 +347,11 @@ const QuizProgress = ({
         onComplete={onTimerComplete}
       >
         {({ remainingTime }) => (
-          <span className={`
-            ${screenSize.is4K ? 'text-2xl' : screenSize.is2K ? 'text-xl' : screenSize.isFullHD ? 'text-lg' : 'text-sm'} 
-            font-medium
-          `}>
-            {remainingTime}s
-          </span>
+          <span className="text-4xl font-medium">{remainingTime}s</span>
         )}
       </CountdownCircleTimer>
     </div>
-    <Progress 
-      value={progress} 
-      className={screenSize.is4K ? 'h-4' : screenSize.is2K ? 'h-3' : 'h-2'} 
-    />
+    <Progress value={progress} className="h-4" />
   </div>
 );
 
@@ -457,13 +361,10 @@ QuizProgress.propTypes = {
   progress: PropTypes.number.isRequired,
   timeLimit: PropTypes.number.isRequired,
   onTimerComplete: PropTypes.func.isRequired,
-  timerSize: PropTypes.number.isRequired,
-  strokeWidth: PropTypes.number.isRequired,
-  screenSize: PropTypes.object.isRequired,
 };
 
 // Component for quiz card
-const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext, screenSize }) => {
+const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
   const options = [
     { id: "option1", value: question.option1 },
     { id: "option2", value: question.option2 },
@@ -472,40 +373,29 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext, screenSize }) =>
   ];
 
   return (
-    <Card className="w-full shadow-lg">
-      <CardHeader className="p-6 md:p-8 2k-screen:p-10 4k-screen:p-12">
-        <CardTitle className={`
-          ${screenSize.is4K ? 'text-4xl' : screenSize.is2K ? 'text-3xl' : screenSize.isFullHD ? 'text-2xl' : 'text-xl'} 
-          font-semibold leading-tight
-        `}>
+    <Card className="w-full shadow-2xl">
+      <CardHeader className="p-12 pb-6">
+        <CardTitle className="text-5xl font-semibold leading-tight">
           {question.questionText}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6 md:p-8 2k-screen:p-10 4k-screen:p-12 pt-0">
-        <div className="space-y-4 md:space-y-6 2k-screen:space-y-8">
+      <CardContent className="p-12 pt-6">
+        <div className="space-y-8">
           {options.map((option) => {
             const isCorrectOption = isTimeUp && question.correctAnswer === option.id;
             return (
-              <div key={option.id} className="flex items-center space-x-2">
+              <div key={option.id} className="flex items-center space-x-4">
                 <Label
                   htmlFor={option.id}
-                  className={`
-                    flex-1 p-4 md:p-5 2k-screen:p-6 4k-screen:p-8 
-                    rounded-lg transition-colors cursor-pointer 
-                    flex justify-between items-center
-                    ${screenSize.is4K ? 'text-xl' : screenSize.is2K ? 'text-lg' : screenSize.isFullHD ? 'text-base' : 'text-sm'}
+                  className={`flex-1 p-8 rounded-xl transition-colors cursor-pointer flex justify-between items-center text-3xl
                     ${isCorrectOption 
                       ? 'bg-green-100 hover:bg-green-200' 
                       : 'bg-gray-50 hover:bg-gray-100'
-                    }
-                  `}
+                    }`}
                 >
                   <span>{option.value}</span>
                   {isCorrectOption && (
-                    <CheckCircle2 className={`
-                      ${screenSize.is4K ? 'h-8 w-8' : screenSize.is2K ? 'h-7 w-7' : screenSize.isFullHD ? 'h-6 w-6' : 'h-5 w-5'} 
-                      text-green-600
-                    `} />
+                    <CheckCircle2 className="h-10 w-10 text-green-600" />
                   )}
                 </Label>
               </div>
@@ -513,15 +403,11 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext, screenSize }) =>
           })}
         </div>
 
-        <div className="flex justify-end mt-6 md:mt-8 2k-screen:mt-10 4k-screen:mt-12">
+        <div className="flex justify-end mt-12">
           {isLastQuestion ? (
             <Button
               onClick={onNext}
-              className={`
-                px-6 md:px-8 2k-screen:px-10 
-                py-2 md:py-3 2k-screen:py-4 
-                ${screenSize.is4K ? 'text-xl' : screenSize.is2K ? 'text-lg' : screenSize.isFullHD ? 'text-base' : 'text-sm'}
-              `}
+              className="px-12 py-6 text-2xl h-auto"
               variant="default"
             >
               Finish
@@ -530,17 +416,11 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext, screenSize }) =>
             <Button
               variant="ghost"
               size="icon"
-              className={`
-                ${screenSize.is4K ? 'h-20 w-20' : screenSize.is2K ? 'h-16 w-16' : screenSize.isFullHD ? 'h-14 w-14' : 'h-12 w-12'} 
-                rounded-full
-              `}
+              className="h-24 w-24 rounded-full"
               onClick={onNext}
             >
               <LucideCircleChevronRight
-                style={{ 
-                  width: screenSize.is4K ? '60px' : screenSize.is2K ? '50px' : screenSize.isFullHD ? '45px' : '40px', 
-                  height: screenSize.is4K ? '60px' : screenSize.is2K ? '50px' : screenSize.isFullHD ? '45px' : '40px' 
-                }}
+                style={{ width: "80px", height: "80px" }}
               />
             </Button>
           )}
@@ -555,7 +435,6 @@ QuizCard.propTypes = {
   isTimeUp: PropTypes.bool.isRequired,
   isLastQuestion: PropTypes.bool.isRequired,
   onNext: PropTypes.func.isRequired,
-  screenSize: PropTypes.object.isRequired,
 };
 
 export default BroadcastQues;
