@@ -455,7 +455,7 @@ const QuizCard = ({ question, isTimeUp, isLastQuestion, onNext }) => {
                   className={`flex-1 ${is4K ? 'p-10 rounded-xl text-4xl' : 'p-4 rounded-lg'} transition-colors cursor-pointer flex justify-between items-center
                     ${isCorrectOption 
                       ? 'bg-green-100 hover:bg-green-200' 
-                      : 'bg-gray-50 hover:bg-gray-100'
+                      : is4K ? 'bg-gray-50 hover:bg-gray-100':'bg-gray-50 hover:bg-gray-100'
                     }`}
                 >
                   <span>{option.value}</span>
